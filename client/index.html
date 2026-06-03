@@ -6,19 +6,23 @@
   <title>pi-zero · 墨</title>
   <!-- 分层主题系统：base.css = 组件结构，theme-*.css = 主题令牌 -->
   <link rel="stylesheet" href="styles/base.css" />
-  <link rel="stylesheet" href="styles/theme-ink-wash.css" id="theme-stylesheet" />
+  <link rel="stylesheet" href="styles/theme-ink-wash.css" id="theme-stylesheet-ink-wash" />
+  <link rel="stylesheet" href="styles/theme-scandinavian.css" id="theme-stylesheet-scandinavian" disabled />
 </head>
 <body>
   <header>
     <div id="status-dot"></div>
-    <h1 class="ink-wash-gradient-text">pi-zero</h1>
+    <h1 class="theme-gradient-text">pi-zero</h1>
     <span class="badge">alpha</span>
     <span id="model-name"></span>
     <button class="theme-btn" id="theme-toggle" title="亮暗切换">
       <span id="theme-icon">☀</span>
       <span id="theme-label">昼</span>
     </button>
-    <!-- 留空给未来主题包扩展 -->
+    <select class="pack-select" id="pack-select" title="主题风格">
+      <option value="ink-wash">水墨 · Ink Wash</option>
+      <option value="scandinavian">北欧 · Scandinavian</option>
+    </select>
   </header>
 
   <div id="messages"></div>
@@ -37,8 +41,27 @@
       const btn   = document.getElementById("theme-toggle");
       const icon  = document.getElementById("theme-icon");
       const label = document.getElementById("theme-label");
+      const packSelect = document.getElementById("pack-select");
 
-      // 恢复上次选择的亮暗模式
+      // ── 主题包（pack）切换 ──
+      function loadPack(slug) {
+        document.querySelectorAll('link[id^="theme-stylesheet-"]').forEach(link => {
+          link.disabled = true;
+        });
+        const target = document.getElementById("theme-stylesheet-" + slug);
+        if (target) target.disabled = false;
+        packSelect.value = slug;
+        localStorage.setItem("pi-zero-pack", slug);
+      }
+
+      const savedPack = localStorage.getItem("pi-zero-pack") || "ink-wash";
+      loadPack(savedPack);
+
+      packSelect.addEventListener("change", () => {
+        loadPack(packSelect.value);
+      });
+
+      // ── 亮暗模式切换 ──
       const saved = localStorage.getItem("pi-zero-theme") || "dark";
       html.setAttribute("data-theme", saved);
       icon.textContent  = saved === "dark" ? "☀" : "○";

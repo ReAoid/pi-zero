@@ -359,10 +359,12 @@ header .badge {
    ═══════════════════════════════════════════════════════════ */
 
 /* 卡面悬停渐变 */
+.theme-card,
 .ink-wash-card {
   position: relative;
   overflow: hidden;
 }
+.theme-card::before,
 .ink-wash-card::before {
   content: "";
   position: absolute;
@@ -372,18 +374,22 @@ header .badge {
   background: var(--gradient-card-hover);
   pointer-events: none;
 }
+.theme-card:hover::before,
 .ink-wash-card:hover::before { opacity: 1; }
 
 /* 渐变背景 / 文字 */
-.ink-wash-gradient       { background: var(--gradient-ink); }
-.ink-wash-gradient-text  {
-  background: var(--gradient-ink);
+.theme-gradient,
+.ink-wash-gradient { background: var(--gradient-theme); }
+.theme-gradient-text,
+.ink-wash-gradient-text {
+  background: var(--gradient-theme);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
 /* 毛玻璃 */
+.theme-frosted,
 .ink-wash-frosted {
   backdrop-filter: blur(12px) saturate(180%);
   -webkit-backdrop-filter: blur(12px) saturate(180%);
@@ -391,13 +397,15 @@ header .badge {
 }
 
 /* 裁角 */
+.theme-accent-corner,
 .ink-wash-accent-corner {
   clip-path: var(--clip-accent-corner);
 }
 
 /* 淡入动画 */
+.theme-animate-in,
 .ink-wash-animate-in {
-  animation: ink-wash-fade-in 0.5s ease-out both;
+  animation: theme-fade-in 0.5s ease-out both;
 }
 
 
@@ -441,7 +449,7 @@ header .badge {
   to { transform: rotate(360deg); }
 }
 
-@keyframes ink-wash-fade-in {
+@keyframes theme-fade-in {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }

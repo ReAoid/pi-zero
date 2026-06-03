@@ -1,0 +1,353 @@
+/* ═══════════════════════════════════════════════════════════
+   pi-zero · Theme: Scandinavian Minimalism (北欧极简风)
+   ═══════════════════════════════════════════════════════════
+   只定义变量值，不含任何组件样式。
+   切换到此主题 = 加载此文件即可。
+   基于 scandinavian-style-pack 严格实现。
+   ═══════════════════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  /* ──────────────────────────────────────────────
+     色板 (Palette) — 北欧极简风
+     ────────────────────────────────────────────── */
+  --scandi-primary:    #3d3d3d;
+  --scandi-secondary:  #f5f0eb;
+  --scandi-bg:         #ffffff;
+  --scandi-dot:        #f0ebe4;
+  --scandi-accent-1:   #5a7a6b;
+  --scandi-accent-2:   #7ba0b8;
+  --scandi-accent-3:   #c9a88c;
+  --scandi-accent-4:   #607683;
+  --scandi-dark:       #2d2d2d;
+  --scandi-charcoal:   #1a1a1a;
+  --scandi-warm-gray:  #e8e2da;
+  --scandi-pale:       #faf8f5;
+  --scandi-white:      #ffffff;
+  --scandi-black:      #000000;
+  --scandi-sage:       #e4ebe7;
+  --scandi-stone:      #d4cdc5;
+  --scandi-frost:      #eef3f7;
+
+  /* ──────────────────────────────────────────────
+     字体
+     ────────────────────────────────────────────── */
+  --font-family-sans:  "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-family-mono:  "JetBrains Mono", "SF Mono", "Fira Code", "Fira Mono", monospace;
+
+  --font-size-xs:   12px;
+  --font-size-sm:   14px;
+  --font-size-base: 16px;
+  --font-size-md:   16px;
+  --font-size-lg:   18px;
+  --font-size-xl:   20px;
+  --font-size-2xl:  24px;
+
+  --font-weight-normal:   400;
+  --font-weight-medium:   500;
+  --font-weight-semibold: 600;
+  --font-weight-bold:     700;
+  --font-weight-black:    900;
+  --font-weight-heading:  700;
+
+  --letter-spacing-heading: -0.01em;
+
+  --line-height-tight:   1.25;
+  --line-height-normal:  1.6;
+  --line-height-loose:   1.8;
+
+  /* ──────────────────────────────────────────────
+     间距
+     ────────────────────────────────────────────── */
+  --spacing-1:  4px;
+  --spacing-2:  8px;
+  --spacing-3:  12px;
+  --spacing-4:  16px;
+  --spacing-5:  20px;
+  --spacing-6:  24px;
+  --spacing-8:  32px;
+  --spacing-10: 40px;
+  --spacing-12: 48px;
+  --spacing-16: 64px;
+
+  /* ──────────────────────────────────────────────
+     圆角 — 北欧风格：微圆角
+     ────────────────────────────────────────────── */
+  --radius-none: 0px;
+  --radius-sm:   2px;
+  --radius-md:   4px;
+  --radius-lg:   8px;
+  --radius-xl:   12px;
+  --radius-full: 9999px;
+
+  /* ──────────────────────────────────────────────
+     边框宽度 — 纤细
+     ────────────────────────────────────────────── */
+  --border-1: 1px;
+  --border-2: 2px;
+  --border-3: 3px;
+  --border-4: 4px;
+
+  /* ──────────────────────────────────────────────
+     阴影 — 北欧柔和阴影
+     ────────────────────────────────────────────── */
+  --shadow-sm:       0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md:       0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+  --shadow-lg:       0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+  --shadow-brutal:    4px 4px 0px 0px rgba(61, 61, 61, 1);
+  --shadow-brutal-md: 6px 6px 0px 0px rgba(61, 61, 61, 1);
+  --shadow-brutal-lg: 8px 8px 0px 0px rgba(61, 61, 61, 1);
+
+  /* ──────────────────────────────────────────────
+     过渡
+     ────────────────────────────────────────────── */
+  --transition-fast:   150ms ease;
+  --transition-normal: 300ms ease;
+  --transition-slow:   500ms ease;
+
+  /* ──────────────────────────────────────────────
+     纹理
+     ────────────────────────────────────────────── */
+  --bg-texture: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.015'/%3E%3C/svg%3E");
+
+  /* ──────────────────────────────────────────────
+     裁切路径
+     ────────────────────────────────────────────── */
+  --clip-corner:       polygon(0 0, 100% 100%, 0 100%);
+  --clip-accent-corner: polygon(0 0, 100% 0, 100% calc(100% - 1rem), calc(100% - 1rem) 100%, 0 100%);
+
+  /* ──────────────────────────────────────────────
+     渐变
+     ────────────────────────────────────────────── */
+  --gradient-scandi:         linear-gradient(135deg, #3d3d3d, #5a7a6b);
+  --gradient-theme:          var(--gradient-scandi);
+  --gradient-card-hover:     linear-gradient(135deg, rgba(61, 61, 61, 0.04), transparent);
+}
+
+/* ═══ 亮色主题语义令牌 ═══ */
+:root,
+[data-theme="light"] {
+  --color-bg:            var(--scandi-bg);
+  --color-bg-alt:        var(--scandi-pale);
+  --color-surface:       var(--scandi-secondary);
+  --color-surface-hover: #ece6de;
+  --color-surface-alt:   var(--scandi-pale);
+  --color-border:        var(--scandi-primary);
+
+  --color-text:          var(--scandi-primary);
+  --color-text-muted:    var(--scandi-accent-4);
+  --color-text-dim:      var(--scandi-stone);
+  --color-text-inverse:  var(--scandi-white);
+
+  --color-accent:        var(--scandi-accent-1);
+  --color-accent-hover:  #4c6a5c;
+
+  --color-success:       var(--scandi-accent-1);
+  --color-warning:       var(--scandi-accent-3);
+  --color-error:         #8b5a5a;
+  --color-info:          var(--scandi-accent-2);
+
+  --color-msg-user:      var(--scandi-pale);
+  --color-msg-assistant: var(--scandi-secondary);
+
+  --color-input-bg:      var(--scandi-white);
+  --color-input-border:  var(--scandi-primary);
+  --color-input-focus:   var(--scandi-accent-1);
+  --color-input-text:    var(--scandi-primary);
+
+  --color-btn-bg:        var(--scandi-primary);
+  --color-btn-bg-hover:  #2d2d2d;
+  --color-btn-text:      var(--scandi-white);
+  --color-btn-disabled:  var(--scandi-stone);
+
+  --color-dot-offline:   var(--color-error);
+  --color-dot-online:    var(--scandi-accent-1);
+  --color-dot-thinking:  var(--scandi-accent-3);
+
+  --color-tool-bg:       var(--scandi-secondary);
+  --color-tool-text:     var(--scandi-accent-4);
+  --color-tool-spinner:  var(--scandi-accent-1);
+
+  --color-frosted-bg:    rgba(61, 61, 61, 0.06);
+
+  --color-placeholder:   var(--scandi-stone);
+
+  --color-badge-bg:      var(--scandi-primary);
+  --color-badge-text:    var(--scandi-white);
+
+  --color-selection-bg:  var(--scandi-accent-1);
+  --color-selection-text: var(--scandi-white);
+
+  /* 组件专用阴影 */
+  --shadow-header:       var(--shadow-md);
+  --shadow-msg:          var(--shadow-sm);
+  --shadow-tool:         var(--shadow-sm);
+  --shadow-input-area:   0 -2px 0px 0px rgba(61, 61, 61, 0.08);
+  --shadow-input:        var(--shadow-sm);
+  --shadow-btn:          var(--shadow-sm);
+  --shadow-btn-hover:    var(--shadow-md);
+  --shadow-btn-active:   var(--shadow-sm);
+
+  --transform-btn-hover:  translateY(-1px);
+  --transform-btn-active: translateY(0px);
+
+  /* shadcn 兼容变量 (HSL) */
+  --background: 0 0% 100%;
+  --foreground: 0 0% 3.9%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 3.9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 3.9%;
+  --primary: 0 0% 24%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 30 33% 94%;
+  --secondary-foreground: 0 0% 100%;
+  --muted: 0 0% 96.1%;
+  --muted-foreground: 0 0% 45.1%;
+  --accent: 152 15% 42%;
+  --accent-foreground: 0 0% 9%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 0 0% 0%;
+  --input: 0 0% 0%;
+  --ring: 0 0% 3.9%;
+  --radius: 0.25rem;
+}
+
+/* ═══ 暗色主题语义令牌 ═══ */
+[data-theme="dark"] {
+  --color-bg:            var(--scandi-charcoal);
+  --color-bg-alt:        #111111;
+  --color-surface:       #2d2d2d;
+  --color-surface-hover: #3d3d3d;
+  --color-surface-alt:   #252525;
+  --color-border:        #e8e2da;
+
+  --color-text:          #f0ede8;
+  --color-text-muted:    #a89279;
+  --color-text-dim:      #666666;
+  --color-text-inverse:  var(--scandi-primary);
+
+  --color-accent:        #8a9a8d;
+  --color-accent-hover:  #9aad9d;
+
+  --color-msg-user:      #333333;
+  --color-msg-assistant: #2a2a2a;
+
+  --color-input-bg:      #2d2d2d;
+  --color-input-border:  #666666;
+  --color-input-focus:   #e8e2da;
+  --color-input-text:    #f0ede8;
+
+  --color-btn-bg:        #e8e2da;
+  --color-btn-bg-hover:  #d4cdc5;
+  --color-btn-text:      var(--scandi-primary);
+  --color-btn-disabled:  #555555;
+
+  --color-tool-bg:       #2a2a2a;
+  --color-tool-spinner:  #8a9a8d;
+
+  --color-frosted-bg:    rgba(255, 255, 255, 0.06);
+
+  --color-placeholder:   #555555;
+
+  --color-badge-bg:      #e8e2da;
+  --color-badge-text:    var(--scandi-primary);
+
+  --color-selection-bg:  #8a9a8d;
+  --color-selection-text: var(--scandi-white);
+
+  /* 组件专用阴影（暗色用浅色阴影） */
+  --shadow-header:       0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
+  --shadow-msg:          0 1px 3px 0 rgba(0, 0, 0, 0.3);
+  --shadow-tool:         0 1px 3px 0 rgba(0, 0, 0, 0.3);
+  --shadow-input-area:   0 -2px 0px 0px rgba(255, 255, 255, 0.06);
+  --shadow-input:        0 1px 3px 0 rgba(0, 0, 0, 0.3);
+  --shadow-btn:          0 1px 3px 0 rgba(0, 0, 0, 0.3);
+  --shadow-btn-hover:    0 4px 6px -1px rgba(0, 0, 0, 0.3);
+  --shadow-btn-active:   0 1px 2px 0 rgba(0, 0, 0, 0.3);
+
+  --transform-btn-hover:  translateY(-1px);
+  --transform-btn-active: translateY(0px);
+
+  /* shadcn 兼容变量 (HSL) */
+  --background: 0 0% 3.9%;
+  --foreground: 0 0% 98%;
+  --card: 0 0% 3.9%;
+  --card-foreground: 0 0% 98%;
+  --popover: 0 0% 3.9%;
+  --popover-foreground: 0 0% 98%;
+  --primary: 0 0% 24%;
+  --primary-foreground: 0 0% 9%;
+  --secondary: 30 33% 94%;
+  --secondary-foreground: 0 0% 9%;
+  --muted: 0 0% 14.9%;
+  --muted-foreground: 0 0% 63.9%;
+  --accent: 152 15% 42%;
+  --accent-foreground: 0 0% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 0 0% 100%;
+  --input: 0 0% 100%;
+  --ring: 0 0% 83.1%;
+  --radius: 0.25rem;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   北欧极简特效类 (Scandinavian Minimalism Effects)
+   ═══════════════════════════════════════════════════════════ */
+
+@keyframes scandinavian-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scandinavian-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.7; }
+}
+
+.scandinavian-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.scandinavian-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  background: var(--gradient-card-hover);
+  pointer-events: none;
+}
+
+.scandinavian-card:hover::before {
+  opacity: 1;
+}
+
+.scandinavian-gradient {
+  background: var(--gradient-scandi);
+}
+
+.scandinavian-gradient-text {
+  background: var(--gradient-scandi);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.scandinavian-frosted {
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  background: var(--color-frosted-bg);
+}
+
+.scandinavian-accent-corner {
+  clip-path: var(--clip-accent-corner);
+}
+
+.scandinavian-animate-in {
+  animation: scandinavian-fade-in 0.5s ease-out both;
+}
