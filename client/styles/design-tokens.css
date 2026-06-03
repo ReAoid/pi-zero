@@ -1,0 +1,11 @@
+/* ═══════════════════════════════════════════════════════════
+   ⚠️ 已废弃 — 请使用分层主题系统
+   ═══════════════════════════════════════════════════════════
+   样式已拆分为：
+     base.css              ← 组件结构（不变）
+     theme-ink-wash.css    ← Ink Wash 主题令牌（可切换）
+
+   要使用此文件的效果，请在 index.html 中引用：
+     <link rel="stylesheet" href="styles/base.css" />
+     <link rel="stylesheet" href="styles/theme-ink-wash.css" id="theme-stylesheet" />
+   ═══════════════════════════════════════════════════════════ */

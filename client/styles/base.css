@@ -1,0 +1,447 @@
+/* ═══════════════════════════════════════════════════════════
+   pi-zero · Base Component Styles
+   ═══════════════════════════════════════════════════════════
+   只引用 CSS 变量，不包含任何颜色/字体/圆角/阴影硬编码值。
+   主题包（theme-*.css）提供所有变量值。
+   可在此添加新的组件样式，它们会自动继承当前主题。
+   ═══════════════════════════════════════════════════════════ */
+
+
+/* ═══════════════════════════════════════════════════════════
+   全局重置
+   ═══════════════════════════════════════════════════════════ */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-size: var(--font-size-base);
+}
+
+body {
+  font-family: var(--font-family-sans);
+  background: var(--color-bg);
+  color: var(--color-text);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  line-height: var(--line-height-normal);
+  transition:
+    background var(--transition-normal),
+    color var(--transition-normal);
+  background-image: var(--bg-texture);
+  background-repeat: repeat;
+  background-size: 256px 256px;
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   顶部导航
+   ═══════════════════════════════════════════════════════════ */
+header {
+  background: var(--color-surface);
+  padding: var(--spacing-3) var(--spacing-6);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  border-bottom: var(--border-2) solid var(--color-border);
+  box-shadow: var(--shadow-header);
+  transition:
+    background var(--transition-normal),
+    border-color var(--transition-normal);
+  position: relative;
+  z-index: 10;
+}
+
+header h1 {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-heading);
+  letter-spacing: var(--letter-spacing-heading);
+  text-transform: uppercase;
+}
+
+header .badge {
+  font-size: var(--font-size-xs);
+  padding: 2px var(--spacing-2);
+  background: var(--color-badge-bg);
+  color: var(--color-badge-text);
+  border: var(--border-1) solid var(--color-border);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+#status-dot {
+  width: 10px;
+  height: 10px;
+  background: var(--color-dot-offline);
+  border: var(--border-1) solid var(--color-border);
+  transition: background var(--transition-normal);
+}
+#status-dot.connected { background: var(--color-dot-online); }
+#status-dot.thinking  { background: var(--color-dot-thinking); animation: pulse 0.8s infinite; }
+
+#model-name {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  margin-left: auto;
+  font-weight: var(--font-weight-medium);
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   消息区域
+   ═══════════════════════════════════════════════════════════ */
+#messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--spacing-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+  scroll-behavior: smooth;
+}
+
+#messages:empty::after {
+  content: "输入消息开始对话...";
+  color: var(--color-placeholder);
+  font-style: italic;
+  text-align: center;
+  margin-top: var(--spacing-16);
+  transition: color var(--transition-normal);
+  font-weight: var(--font-weight-normal);
+}
+
+/* ── 单条消息 ── */
+.msg {
+  max-width: 80%;
+  padding: var(--spacing-4) var(--spacing-5);
+  line-height: var(--line-height-loose);
+  font-size: var(--font-size-base);
+  white-space: pre-wrap;
+  word-break: break-word;
+  border: var(--border-1) solid var(--color-border);
+  box-shadow: var(--shadow-msg);
+  transition:
+    background var(--transition-normal),
+    border-color var(--transition-normal);
+  position: relative;
+}
+
+.msg.user {
+  align-self: flex-end;
+  background: var(--color-msg-user);
+}
+
+.msg.assistant {
+  align-self: flex-start;
+  background: var(--color-msg-assistant);
+}
+
+/* 用户消息裁角 */
+.msg.user::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 16px;
+  height: 16px;
+  background: var(--color-bg);
+  clip-path: var(--clip-corner);
+}
+
+.msg .sender {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin-bottom: var(--spacing-2);
+  font-weight: var(--font-weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.msg .text {
+  position: relative;
+  z-index: 1;
+}
+
+.msg .cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background: var(--color-text);
+  margin-left: 2px;
+  animation: blink 0.6s infinite;
+  vertical-align: text-bottom;
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   Tool 调用行
+   ═══════════════════════════════════════════════════════════ */
+.tool-call {
+  align-self: flex-start;
+  font-size: var(--font-size-sm);
+  color: var(--color-tool-text);
+  padding: var(--spacing-2) var(--spacing-4);
+  background: var(--color-tool-bg);
+  border: var(--border-1) solid var(--color-border);
+  box-shadow: var(--shadow-tool);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  font-family: var(--font-family-mono);
+  transition:
+    background var(--transition-normal),
+    color var(--transition-normal);
+}
+
+.tool-call .spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--color-text-dim);
+  border-top-color: var(--color-tool-spinner);
+  animation: spin 0.8s linear infinite;
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   输入区域
+   ═══════════════════════════════════════════════════════════ */
+#input-area {
+  padding: var(--spacing-4) var(--spacing-6);
+  background: var(--color-surface);
+  border-top: var(--border-2) solid var(--color-border);
+  box-shadow: var(--shadow-input-area);
+  display: flex;
+  gap: var(--spacing-3);
+  align-items: flex-end;
+  transition:
+    background var(--transition-normal),
+    border-color var(--transition-normal);
+}
+
+#input-area textarea {
+  flex: 1;
+  background: var(--color-input-bg);
+  border: var(--border-1) solid var(--color-input-border);
+  padding: var(--spacing-3);
+  color: var(--color-input-text);
+  font-size: var(--font-size-base);
+  font-family: inherit;
+  resize: none;
+  outline: none;
+  min-height: 48px;
+  max-height: 120px;
+  box-shadow: var(--shadow-input);
+  transition:
+    background var(--transition-normal),
+    border-color var(--transition-fast),
+    color var(--transition-normal);
+}
+
+#input-area textarea:focus {
+  border-width: var(--border-2);
+}
+
+#input-area textarea::placeholder {
+  color: var(--color-text-dim);
+}
+
+#input-area button {
+  padding: var(--spacing-3) var(--spacing-8);
+  background: var(--color-btn-bg);
+  color: var(--color-btn-text);
+  border: var(--border-1) solid var(--color-border);
+  font-size: var(--font-size-base);
+  cursor: pointer;
+  font-weight: var(--font-weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  box-shadow: var(--shadow-btn);
+  transition:
+    background var(--transition-fast),
+    box-shadow var(--transition-fast),
+    transform var(--transition-fast);
+  min-height: 48px;
+  white-space: nowrap;
+}
+
+#input-area button:hover {
+  background: var(--color-btn-bg-hover);
+  transform: var(--transform-btn-hover);
+  box-shadow: var(--shadow-btn-hover);
+}
+
+#input-area button:active {
+  transform: var(--transform-btn-active);
+  box-shadow: var(--shadow-btn-active);
+}
+
+#input-area button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: var(--shadow-btn);
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   主题切换按钮
+   ═══════════════════════════════════════════════════════════ */
+.theme-btn {
+  background: var(--color-surface);
+  border: var(--border-1) solid var(--color-border);
+  color: var(--color-text);
+  font-size: var(--font-size-base);
+  padding: var(--spacing-2) var(--spacing-3);
+  cursor: pointer;
+  box-shadow: var(--shadow-btn);
+  font-family: var(--font-family-sans);
+  font-weight: var(--font-weight-medium);
+  transition:
+    background var(--transition-fast),
+    box-shadow var(--transition-fast),
+    transform var(--transition-fast);
+  line-height: 1;
+}
+
+.theme-btn:hover {
+  background: var(--color-surface-hover);
+  transform: var(--transform-btn-hover);
+  box-shadow: var(--shadow-btn-hover);
+}
+
+.theme-btn:active {
+  transform: var(--transform-btn-active);
+  box-shadow: var(--shadow-btn-active);
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   设计包选择器
+   ═══════════════════════════════════════════════════════════ */
+.pack-select {
+  background: var(--color-surface);
+  border: var(--border-1) solid var(--color-border);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  padding: var(--spacing-2) var(--spacing-2);
+  cursor: pointer;
+  box-shadow: var(--shadow-btn);
+  font-family: var(--font-family-sans);
+  font-weight: var(--font-weight-medium);
+  transition:
+    background var(--transition-fast),
+    box-shadow var(--transition-fast);
+  line-height: 1;
+  outline: none;
+  min-width: 120px;
+}
+
+.pack-select:hover {
+  background: var(--color-surface-hover);
+  box-shadow: var(--shadow-btn-hover);
+}
+
+.pack-select option {
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   Ink Wash 效果类（可跨主题复用的结构性效果）
+   ═══════════════════════════════════════════════════════════ */
+
+/* 卡面悬停渐变 */
+.ink-wash-card {
+  position: relative;
+  overflow: hidden;
+}
+.ink-wash-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  background: var(--gradient-card-hover);
+  pointer-events: none;
+}
+.ink-wash-card:hover::before { opacity: 1; }
+
+/* 渐变背景 / 文字 */
+.ink-wash-gradient       { background: var(--gradient-ink); }
+.ink-wash-gradient-text  {
+  background: var(--gradient-ink);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* 毛玻璃 */
+.ink-wash-frosted {
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  background: var(--color-frosted-bg);
+}
+
+/* 裁角 */
+.ink-wash-accent-corner {
+  clip-path: var(--clip-accent-corner);
+}
+
+/* 淡入动画 */
+.ink-wash-animate-in {
+  animation: ink-wash-fade-in 0.5s ease-out both;
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   滚动条
+   ═══════════════════════════════════════════════════════════ */
+#messages::-webkit-scrollbar { width: 6px; }
+#messages::-webkit-scrollbar-track { background: transparent; }
+#messages::-webkit-scrollbar-thumb {
+  background: var(--color-text-dim);
+  border: none;
+}
+#messages::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   选中文字
+   ═══════════════════════════════════════════════════════════ */
+::selection {
+  background: var(--color-selection-bg);
+  color: var(--color-selection-text);
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   关键帧动画（主题无关，留在此处）
+   ═══════════════════════════════════════════════════════════ */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.3; }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes ink-wash-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

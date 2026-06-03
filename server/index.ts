@@ -2,6 +2,7 @@ import express from "express";
 import { createServer } from "node:http";
 import { WebSocketServer, WebSocket } from "ws";
 import path from "node:path";
+import fs from "node:fs";
 import { ChatAgent } from "./chat-agent.js";
 
 // ── 初始化 pi Agent ──
@@ -57,6 +58,40 @@ wss.on("connection", (ws) => {
     console.error("[WS] 错误:", err.message);
   });
 });
+
+// ── 热更新：监听前端文件变更 ──
+const clientDir = path.resolve("client");
+let reloadTimer: ReturnType<typeof setTimeout> | null = null;
+
+function broadcastReload() {
+  // 防抖：500ms 内多次变更只触发一次刷新
+  if (reloadTimer) clearTimeout(reloadTimer);
+  reloadTimer = setTimeout(() => {
+    console.log("  ♻️  前端文件已变更，通知浏览器刷新...");
+    const msg = JSON.stringify({ type: "hot_reload" });
+    wss.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(msg);
+      }
+    });
+  }, 500);
+}
+
+// 监听 client 目录（包括子目录）
+try {
+  fs.watch(clientDir, { recursive: true }, (eventType, filename) => {
+    if (filename) {
+      const ext = path.extname(filename).toLowerCase();
+      // 只监听前端相关文件
+      if ([".html", ".css", ".js", ".png", ".svg", ".jpg", ".json"].includes(ext)) {
+        broadcastReload();
+      }
+    }
+  });
+  console.log("  👀 热更新已启动：监听 client/ 目录文件变更");
+} catch (err) {
+  console.warn("  ⚠️  文件监听启动失败（不影响运行）:", (err as Error).message);
+}
 
 // ── 启动 ──
 const PORT = parseInt(process.env.PORT || "3000", 10);

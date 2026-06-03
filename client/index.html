@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>pi-zero · 墨</title>
+  <!-- 分层主题系统：base.css = 组件结构，theme-*.css = 主题令牌 -->
+  <link rel="stylesheet" href="styles/base.css" />
+  <link rel="stylesheet" href="styles/theme-ink-wash.css" id="theme-stylesheet" />
+</head>
+<body>
+  <header>
+    <div id="status-dot"></div>
+    <h1 class="ink-wash-gradient-text">pi-zero</h1>
+    <span class="badge">alpha</span>
+    <span id="model-name"></span>
+    <button class="theme-btn" id="theme-toggle" title="亮暗切换">
+      <span id="theme-icon">☀</span>
+      <span id="theme-label">昼</span>
+    </button>
+    <!-- 留空给未来主题包扩展 -->
+  </header>
+
+  <div id="messages"></div>
+
+  <div id="input-area">
+    <textarea id="input" rows="1" placeholder="输入消息... (Enter 发送, Shift+Enter 换行)" autofocus></textarea>
+    <button id="send-btn">发送</button>
+  </div>
+
+  <script>
+    // ═══════════════════════════════════════════════════
+    //  主题系统初始化
+    // ═══════════════════════════════════════════════════
+    (function initTheme() {
+      const html  = document.documentElement;
+      const btn   = document.getElementById("theme-toggle");
+      const icon  = document.getElementById("theme-icon");
+      const label = document.getElementById("theme-label");
+
+      // 恢复上次选择的亮暗模式
+      const saved = localStorage.getItem("pi-zero-theme") || "dark";
+      html.setAttribute("data-theme", saved);
+      icon.textContent  = saved === "dark" ? "☀" : "○";
+      label.textContent = saved === "dark" ? "昼" : "墨";
+
+      btn.addEventListener("click", () => {
+        const current = html.getAttribute("data-theme");
+        const next    = current === "dark" ? "light" : "dark";
+        html.setAttribute("data-theme", next);
+        icon.textContent  = next === "dark" ? "☀" : "○";
+        label.textContent = next === "dark" ? "昼" : "墨";
+        localStorage.setItem("pi-zero-theme", next);
+      });
+    })();
+
+    // ═══════════════════════════════════════════════════
+    //  DOM refs
+    // ═══════════════════════════════════════════════════
+    const $ = (s) => document.querySelector(s);
+    const statusDot  = $("#status-dot");
+    const modelName  = $("#model-name");
+    const messages   = $("#messages");
+    const input      = $("#input");
+    const sendBtn    = $("#send-btn");
+
+    let currentAssistantMsg = null; // 当前正在接收的 AI 消息元素
+    let busy = false;
+
+    // ═══════════════════════════════════════════════════
+    //  WebSocket
+    // ═══════════════════════════════════════════════════
+    const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+    const ws = new WebSocket(`${protocol}//${location.host}`);
+
+    ws.onopen = () => {
+      statusDot.className = "connected";
+      console.log("[WS] 已连接");
+    };
+
+    ws.onclose = () => {
+      statusDot.className = "";
+      busy = false;
+      sendBtn.disabled = false;
+    };
+
+    ws.onmessage = (e) => {
+      try {
+        const event = JSON.parse(e.data);
+        handleEvent(event);
+      } catch (err) {
+        console.error("解析事件失败:", err);
+      }
+    };
+
+    // ═══════════════════════════════════════════════════
+    //  事件处理
+    // ═══════════════════════════════════════════════════
+    function handleEvent(event) {
+      switch (event.type) {
+
+        // ── 流式文本 ──
+        case "message_update": {
+          const ev = event.assistantMessageEvent;
+          if (!ev) break;
+
+          if (ev.type === "text_delta") {
+            if (!currentAssistantMsg) {
+              currentAssistantMsg = addMessage("assistant");
+            }
+            currentAssistantMsg.querySelector(".text").textContent += ev.delta;
+            scrollToBottom();
+          }
+
+          if (ev.type === "thinking_delta") {
+            // 可选择显示思考过程
+          }
+          break;
+        }
+
+        // ── Tool 执行 ──
+        case "tool_execution_start": {
+          const el = document.createElement("div");
+          el.className = "tool-call";
+          el.dataset.toolCallId = event.toolCallId;
+          el.innerHTML = `<span class="spinner"></span> 正在执行: ${event.toolName}`;
+          messages.appendChild(el);
+          scrollToBottom();
+          break;
+        }
+
+        case "tool_execution_end": {
+          const el = messages.querySelector(`[data-tool-call-id="${event.toolCallId}"]`);
+          if (el) {
+            el.innerHTML = `✅ 执行完成: ${event.toolName}`;
+            if (event.isError) {
+              el.innerHTML = `❌ 执行出错: ${event.toolName}`;
+            }
+          }
+          break;
+        }
+
+        // ── Agent 生命周期 ──
+        case "agent_start": {
+          statusDot.className = "thinking";
+          busy = true;
+          sendBtn.disabled = true;
+          break;
+        }
+
+        case "agent_end": {
+          statusDot.className = "connected";
+          currentAssistantMsg = null;
+          busy = false;
+          sendBtn.disabled = false;
+          input.focus();
+          break;
+        }
+
+        // ── 热更新：前端文件变更时自动刷新 ──
+        case "hot_reload": {
+          console.log("♻️  检测到前端文件变更，刷新页面...");
+          location.reload();
+          break;
+        }
+
+        // ── 会话信息 ──
+        case "session_info": {
+          if (event.model) {
+            modelName.textContent = `${event.model.provider}/${event.model.id}`;
+          }
+          break;
+        }
+
+        default:
+          break;
+      }
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  UI 操作
+    // ═══════════════════════════════════════════════════
+    function addMessage(role) {
+      const div = document.createElement("div");
+      div.className = `msg ${role}`;
+
+      const sender = document.createElement("div");
+      sender.className = "sender";
+      sender.textContent = role === "user" ? "你" : "AI";
+
+      const text = document.createElement("div");
+      text.className = "text";
+
+      div.appendChild(sender);
+      div.appendChild(text);
+
+      if (role === "assistant") {
+        const cursor = document.createElement("span");
+        cursor.className = "cursor";
+        text.appendChild(cursor);
+      }
+
+      messages.appendChild(div);
+      scrollToBottom();
+      return div;
+    }
+
+    function scrollToBottom() {
+      requestAnimationFrame(() => {
+        messages.scrollTop = messages.scrollHeight;
+      });
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  发送消息
+    // ═══════════════════════════════════════════════════
+    function send() {
+      const text = input.value.trim();
+      if (!text || busy) return;
+
+      // 显示用户消息
+      addMessage("user").querySelector(".text").textContent = text;
+      input.value = "";
+      input.style.height = "auto";
+
+      // 清空当前 AI 消息（重新开始）
+      currentAssistantMsg = null;
+
+      // 发送给后端
+      ws.send(JSON.stringify({ type: "prompt", text }));
+    }
+
+    // ── 输入框事件 ──
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        send();
+      }
+    });
+
+    input.addEventListener("input", () => {
+      input.style.height = "auto";
+      input.style.height = Math.min(input.scrollHeight, 120) + "px";
+    });
+
+    sendBtn.addEventListener("click", send);
+
+    // ── 启动后聚焦 ──
+    setTimeout(() => input.focus(), 300);
+  </script>
+</body>
+</html>

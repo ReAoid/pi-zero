@@ -1,0 +1,288 @@
+/* ═══════════════════════════════════════════════════════════
+   pi-zero · Theme: Ink Wash (水墨画风)
+   ═══════════════════════════════════════════════════════════
+   只定义变量值，不含任何组件样式。
+   切换到此主题 = 加载此文件即可。
+   基于 ink-wash-style-pack 严格实现。
+   ═══════════════════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  /* ──────────────────────────────────────────────
+     色板 (Palette)
+     ────────────────────────────────────────────── */
+  --ink-black:       #2c2c2c;
+  --ink-bg:          #f8f5f0;
+  --ink-surface:     #f3efe8;
+  --ink-text:        #2c2c2c;
+  --ink-muted:       #a89279;
+  --ink-moss:        #6b7b6e;
+  --ink-sand:        #c4b9a8;
+  --ink-teal:        #697a7c;
+  --ink-white:       #ffffff;
+
+  --ink-success:     #6b7b6e;
+  --ink-warning:     #c4b9a8;
+  --ink-error:       #8b5a5a;
+  --ink-info:        #697a7c;
+
+  /* ──────────────────────────────────────────────
+     字体
+     ────────────────────────────────────────────── */
+  --font-family-sans:  "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-family-mono:  "JetBrains Mono", "SF Mono", "Fira Code", "Fira Mono", monospace;
+
+  --font-size-xs:   12px;
+  --font-size-sm:   14px;
+  --font-size-base: 16px;
+  --font-size-md:   16px;
+  --font-size-lg:   18px;
+  --font-size-xl:   20px;
+  --font-size-2xl:  24px;
+
+  --font-weight-normal:   400;
+  --font-weight-medium:   500;
+  --font-weight-semibold: 600;
+  --font-weight-bold:     700;
+  --font-weight-black:    900;
+  --font-weight-heading:  900;
+
+  --letter-spacing-heading: -0.02em;
+
+  --line-height-tight:   1.25;
+  --line-height-normal:  1.5;
+  --line-height-loose:   1.75;
+
+  /* ──────────────────────────────────────────────
+     间距
+     ────────────────────────────────────────────── */
+  --spacing-1:  4px;
+  --spacing-2:  8px;
+  --spacing-3:  12px;
+  --spacing-4:  16px;
+  --spacing-5:  20px;
+  --spacing-6:  24px;
+  --spacing-8:  32px;
+  --spacing-10: 40px;
+  --spacing-12: 48px;
+  --spacing-16: 64px;
+
+  /* ──────────────────────────────────────────────
+     圆角 — 水墨风格：硬边 0
+     ────────────────────────────────────────────── */
+  --radius-none: 0px;
+  --radius-sm:   0px;
+  --radius-md:   0px;
+  --radius-lg:   0px;
+  --radius-xl:   0px;
+  --radius-full: 9999px;
+
+  /* ──────────────────────────────────────────────
+     边框宽度 — 粗野加粗
+     ────────────────────────────────────────────── */
+  --border-1: 1px;
+  --border-2: 2px;
+  --border-3: 3px;
+  --border-4: 4px;
+
+  /* ──────────────────────────────────────────────
+     阴影 — 粗野主义硬阴影
+     ────────────────────────────────────────────── */
+  --shadow-brutal:    4px 4px 0px 0px rgba(44, 44, 44, 1);
+  --shadow-brutal-md: 6px 6px 0px 0px rgba(44, 44, 44, 1);
+  --shadow-brutal-lg: 8px 8px 0px 0px rgba(44, 44, 44, 1);
+
+  /* ──────────────────────────────────────────────
+     过渡
+     ────────────────────────────────────────────── */
+  --transition-fast:   150ms ease;
+  --transition-normal: 250ms ease;
+  --transition-slow:   400ms ease;
+
+  /* ──────────────────────────────────────────────
+     纹理
+     ────────────────────────────────────────────── */
+  --bg-texture: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.02'/%3E%3C/svg%3E");
+
+  /* ──────────────────────────────────────────────
+     裁切路径
+     ────────────────────────────────────────────── */
+  --clip-corner:       polygon(0 0, 100% 100%, 0 100%);
+  --clip-accent-corner: polygon(0 0, 100% 0, 100% calc(100% - 1rem), calc(100% - 1rem) 100%, 0 100%);
+
+  /* ──────────────────────────────────────────────
+     渐变
+     ────────────────────────────────────────────── */
+  --gradient-ink:         linear-gradient(135deg, #2c2c2c, #6b7b6e);
+  --gradient-card-hover:  linear-gradient(135deg, rgba(44,44,44,0.04), transparent);
+}
+
+/* ═══ 亮色主题语义令牌 ═══ */
+:root,
+[data-theme="light"] {
+  --color-bg:            var(--ink-bg);
+  --color-bg-alt:        var(--ink-white);
+  --color-surface:       var(--ink-surface);
+  --color-surface-hover: #e8e3da;
+  --color-surface-alt:   #ede8e0;
+  --color-border:        var(--ink-black);
+
+  --color-text:          var(--ink-text);
+  --color-text-muted:    var(--ink-muted);
+  --color-text-dim:      var(--ink-sand);
+  --color-text-inverse:  var(--ink-white);
+
+  --color-accent:        var(--ink-moss);
+  --color-accent-hover:  #5a6a5d;
+
+  --color-success:       var(--ink-success);
+  --color-warning:       var(--ink-warning);
+  --color-error:         var(--ink-error);
+  --color-info:          var(--ink-info);
+
+  --color-msg-user:      var(--ink-white);
+  --color-msg-assistant: var(--ink-surface);
+
+  --color-input-bg:      var(--ink-white);
+  --color-input-border:  var(--ink-black);
+  --color-input-focus:   var(--ink-black);
+  --color-input-text:    var(--ink-text);
+
+  --color-btn-bg:        var(--ink-black);
+  --color-btn-bg-hover:  #1a1a1a;
+  --color-btn-text:      var(--ink-white);
+  --color-btn-disabled:  var(--ink-sand);
+
+  --color-dot-offline:   var(--ink-error);
+  --color-dot-online:    var(--ink-moss);
+  --color-dot-thinking:  var(--ink-muted);
+
+  --color-tool-bg:       var(--ink-surface);
+  --color-tool-text:     var(--ink-muted);
+  --color-tool-spinner:  var(--ink-moss);
+
+  --color-frosted-bg:    rgba(44, 44, 44, 0.06);
+
+  --color-placeholder:   var(--ink-sand);
+
+  --color-badge-bg:      var(--ink-black);
+  --color-badge-text:    var(--ink-white);
+
+  --color-selection-bg:  var(--ink-black);
+  --color-selection-text: var(--ink-white);
+
+  /* 组件专用阴影 */
+  --shadow-header:       var(--shadow-brutal);
+  --shadow-msg:          var(--shadow-brutal);
+  --shadow-tool:         var(--shadow-brutal);
+  --shadow-input-area:   0 -4px 0px 0px rgba(44, 44, 44, 1);
+  --shadow-input:        var(--shadow-brutal);
+  --shadow-btn:          var(--shadow-brutal);
+  --shadow-btn-hover:    3px 3px 0px 0px rgba(44, 44, 44, 1);
+  --shadow-btn-active:   2px 2px 0px 0px rgba(44, 44, 44, 1);
+
+  --transform-btn-hover:  translate(1px, 1px);
+  --transform-btn-active: translate(2px, 2px);
+
+  /* shadcn 兼容变量 */
+  --background: 0 0% 100%;
+  --foreground: 0 0% 3.9%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 3.9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 3.9%;
+  --primary: 0 0% 17%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 38 36% 96%;
+  --secondary-foreground: 0 0% 100%;
+  --muted: 0 0% 96.1%;
+  --muted-foreground: 0 0% 45.1%;
+  --accent: 131 7% 45%;
+  --accent-foreground: 0 0% 9%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 0 0% 0%;
+  --input: 0 0% 0%;
+  --ring: 0 0% 3.9%;
+  --radius: 0rem;
+}
+
+/* ═══ 暗色主题语义令牌 ═══ */
+[data-theme="dark"] {
+  --color-bg:            #1a1a1a;
+  --color-bg-alt:        #111111;
+  --color-surface:       #222222;
+  --color-surface-hover: #333333;
+  --color-surface-alt:   #2a2a2a;
+  --color-border:        var(--ink-white);
+
+  --color-text:          #f0ede8;
+  --color-text-muted:    var(--ink-muted);
+  --color-text-dim:      #666666;
+  --color-text-inverse:  var(--ink-text);
+
+  --color-accent:        #8a9a8d;
+  --color-accent-hover:  #9aad9d;
+
+  --color-msg-user:      #333333;
+  --color-msg-assistant: #2a2a2a;
+
+  --color-input-bg:      #222222;
+  --color-input-border:  #666666;
+  --color-input-focus:   var(--ink-white);
+  --color-input-text:    #f0ede8;
+
+  --color-btn-bg:        var(--ink-white);
+  --color-btn-bg-hover:  #e0ddd8;
+  --color-btn-text:      var(--ink-black);
+  --color-btn-disabled:  #555555;
+
+  --color-tool-bg:       #2a2a2a;
+  --color-tool-spinner:  var(--ink-moss);
+
+  --color-frosted-bg:    rgba(255, 255, 255, 0.06);
+
+  --color-placeholder:   #555555;
+
+  --color-badge-bg:      var(--ink-white);
+  --color-badge-text:    var(--ink-black);
+
+  --color-selection-bg:  var(--ink-white);
+  --color-selection-text: var(--ink-black);
+
+  /* 组件专用阴影（暗色用浅色阴影） */
+  --shadow-header:       var(--shadow-brutal);
+  --shadow-msg:          var(--shadow-brutal);
+  --shadow-tool:         var(--shadow-brutal);
+  --shadow-input-area:   0 -4px 0px 0px rgba(255, 255, 255, 1);
+  --shadow-input:        var(--shadow-brutal);
+  --shadow-btn:          var(--shadow-brutal);
+  --shadow-btn-hover:    3px 3px 0px 0px rgba(255, 255, 255, 1);
+  --shadow-btn-active:   2px 2px 0px 0px rgba(255, 255, 255, 1);
+
+  --transform-btn-hover:  translate(1px, 1px);
+  --transform-btn-active: translate(2px, 2px);
+
+  /* shadcn 兼容变量 */
+  --background: 0 0% 3.9%;
+  --foreground: 0 0% 98%;
+  --card: 0 0% 3.9%;
+  --card-foreground: 0 0% 98%;
+  --popover: 0 0% 3.9%;
+  --popover-foreground: 0 0% 98%;
+  --primary: 0 0% 17%;
+  --primary-foreground: 0 0% 9%;
+  --secondary: 38 36% 96%;
+  --secondary-foreground: 0 0% 9%;
+  --muted: 0 0% 14.9%;
+  --muted-foreground: 0 0% 63.9%;
+  --accent: 131 7% 45%;
+  --accent-foreground: 0 0% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 0 0% 100%;
+  --input: 0 0% 100%;
+  --ring: 0 0% 83.1%;
+  --radius: 0rem;
+}
