@@ -26,9 +26,6 @@ body {
   font-family: var(--font-family-sans);
   background: var(--color-bg);
   color: var(--color-text);
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
   line-height: var(--line-height-normal);
   transition:
     background var(--transition-normal),
@@ -40,9 +37,86 @@ body {
 
 
 /* ═══════════════════════════════════════════════════════════
+   圣杯布局 (Holy Grail Layout)
+   ═══════════════════════════════════════════════════════════ */
+.holy-grail {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.holy-grail-body {
+  display: flex;
+  flex: 1;
+}
+
+.holy-grail-nav {
+  width: 240px;
+  flex-shrink: 0;
+  background: var(--color-surface);
+  border-right: var(--border-1) solid var(--color-border);
+  padding: var(--spacing-4);
+  transition:
+    background var(--transition-normal),
+    border-color var(--transition-normal);
+}
+
+.holy-grail-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.holy-grail-aside {
+  width: 256px;
+  flex-shrink: 0;
+  background: var(--color-surface);
+  border-left: var(--border-1) solid var(--color-border);
+  padding: var(--spacing-4);
+  transition:
+    background var(--transition-normal),
+    border-color var(--transition-normal);
+}
+
+.holy-grail-footer {
+  background: var(--color-surface);
+  border-top: var(--border-2) solid var(--color-border);
+  padding: var(--spacing-3) var(--spacing-6);
+  text-align: center;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  transition:
+    background var(--transition-normal),
+    border-color var(--transition-normal),
+    color var(--transition-normal);
+}
+
+/* ── 响应式：大屏隐藏右侧边栏 ── */
+@media (max-width: 1024px) {
+  .holy-grail-aside {
+    display: none;
+  }
+}
+
+/* ── 响应式：小屏折叠左侧导航 ── */
+@media (max-width: 768px) {
+  .holy-grail-body {
+    flex-direction: column;
+  }
+  .holy-grail-nav {
+    width: 100%;
+    border-right: none;
+    border-bottom: var(--border-1) solid var(--color-border);
+  }
+}
+
+
+/* ═══════════════════════════════════════════════════════════
    顶部导航
    ═══════════════════════════════════════════════════════════ */
-header {
+header,
+.holy-grail-header {
   background: var(--color-surface);
   padding: var(--spacing-3) var(--spacing-6);
   display: flex;
@@ -53,8 +127,9 @@ header {
   transition:
     background var(--transition-normal),
     border-color var(--transition-normal);
-  position: relative;
-  z-index: 10;
+  position: sticky;
+  top: 0;
+  z-index: 50;
 }
 
 header h1 {

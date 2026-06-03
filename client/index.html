@@ -10,26 +10,56 @@
   <link rel="stylesheet" href="styles/theme-scandinavian.css" id="theme-stylesheet-scandinavian" disabled />
 </head>
 <body>
-  <header>
-    <div id="status-dot"></div>
-    <h1 class="theme-gradient-text">pi-zero</h1>
-    <span class="badge">alpha</span>
-    <span id="model-name"></span>
-    <button class="theme-btn" id="theme-toggle" title="亮暗切换">
-      <span id="theme-icon">☀</span>
-      <span id="theme-label">昼</span>
-    </button>
-    <select class="pack-select" id="pack-select" title="主题风格">
-      <option value="ink-wash">水墨 · Ink Wash</option>
-      <option value="scandinavian">北欧 · Scandinavian</option>
-    </select>
-  </header>
+  <!-- ════════════════════════════════════════════
+       圣杯布局容器 (Holy Grail Layout)
+       ════════════════════════════════════════════ -->
+  <div class="holy-grail">
 
-  <div id="messages"></div>
+    <!-- ── 固定页头 ── -->
+    <header class="holy-grail-header">
+      <div id="status-dot"></div>
+      <h1 class="theme-gradient-text">pi-zero</h1>
+      <span class="badge">alpha</span>
+      <span id="model-name"></span>
+      <button class="theme-btn" id="theme-toggle" title="亮暗切换">
+        <span id="theme-icon">☀</span>
+        <span id="theme-label">昼</span>
+      </button>
+      <select class="pack-select" id="pack-select" title="主题风格">
+        <option value="ink-wash">水墨 · Ink Wash</option>
+        <option value="scandinavian">北欧 · Scandinavian</option>
+      </select>
+    </header>
 
-  <div id="input-area">
-    <textarea id="input" rows="1" placeholder="输入消息... (Enter 发送, Shift+Enter 换行)" autofocus></textarea>
-    <button id="send-btn">发送</button>
+    <!-- ── 三列主体 ── -->
+    <div class="holy-grail-body">
+
+      <!-- 左侧导航栏（暂空） -->
+      <nav class="holy-grail-nav">
+        <!-- 预留左侧导航 -->
+      </nav>
+
+      <!-- 主内容区：聊天界面 -->
+      <main class="holy-grail-main">
+        <div id="messages"></div>
+        <div id="input-area">
+          <textarea id="input" rows="1" placeholder="输入消息... (Enter 发送, Shift+Enter 换行)" autofocus></textarea>
+          <button id="send-btn">发送</button>
+        </div>
+      </main>
+
+      <!-- 右侧边栏（暂空） -->
+      <aside class="holy-grail-aside">
+        <!-- 预留右侧边栏 -->
+      </aside>
+
+    </div>
+
+    <!-- ── 固定页脚 ── -->
+    <footer class="holy-grail-footer">
+      <span>pi-zero · powered by pi-coding-agent</span>
+    </footer>
+
   </div>
 
   <script>
