@@ -11,9 +11,11 @@
   },
   "dependencies": {
     "@earendil-works/pi-coding-agent": "latest",
+    "@hono/node-server": "^2.0.4",
     "express": "^4.21.0",
-    "ws": "^8.18.0",
-    "typebox": "^1.1.38"
+    "hono": "^4.12.23",
+    "typebox": "^1.1.38",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",

@@ -1,6 +1,7 @@
-import express from "express";
-import { createServer } from "node:http";
-import { spawn, execSync, execFileSync } from "node:child_process";
+import { Hono } from "hono";
+import { serve } from "@hono/node-server";
+import { spawn, execFileSync } from "node:child_process";
+import { createServer as createHttp } from "node:http";
 import { WebSocketServer, WebSocket } from "ws";
 import path from "node:path";
 import fs from "node:fs";
@@ -22,7 +23,6 @@ const configRestored = providerRegistry.loadFromFile();
 
 agent.init().catch((err: Error) => {
   if (configRestored) {
-    // 如果从文件恢复了配置但是 init 失败，可能是 API Key 过期了，不阻止启动
     console.warn("[启动] 已恢复配置但初始化报错:", err.message);
     console.warn("[启动] 请在设置面板重新配置供应商");
   } else {
@@ -31,18 +31,14 @@ agent.init().catch((err: Error) => {
   }
 });
 
-// ── HTTP + WebSocket Server ──
-const app = express();
-app.use(express.json()); // 解析 JSON body
-const httpServer = createServer(app);
-const wss = new WebSocketServer({ server: httpServer });
+// ────────────────────────────────────────────────────
+//  Hono App
+// ────────────────────────────────────────────────────
+const app = new Hono();
 
-// 托管静态文件（client/index.html）
-app.use(express.static(path.resolve("client")));
-
-// 健康检查
-app.get("/api/status", (_req, res) => {
-  res.json({
+// ── 健康检查 ──
+app.get("/api/status", (c) => {
+  return c.json({
     ok: true,
     sessionId: agent.sessionId,
     model: agent.modelInfo,
@@ -50,28 +46,39 @@ app.get("/api/status", (_req, res) => {
 });
 
 // ── 供应商测试连接 ──
-app.post("/api/provider/test", async (req, res) => {
-  const config = req.body;
+app.post("/api/provider/test", async (c) => {
+  const config = await c.req.json();
   if (!config || !config.provider || !config.apiKey) {
-    res.status(400).json({ ok: false, error: "参数不完整，需要 provider, apiKey" });
-    return;
+    return c.json({ ok: false, error: "参数不完整，需要 provider, apiKey" }, 400);
   }
   const result = await providerRegistry.testConnection(config);
-  res.json(result);
+  return c.json(result);
 });
 
 // ── 获取可用模型列表 ──
-app.post("/api/provider/models", async (req, res) => {
-  const config = req.body;
+app.post("/api/provider/models", async (c) => {
+  const config = await c.req.json();
   if (!config || !config.provider || !config.apiKey) {
-    res.status(400).json({ ok: false, error: "参数不完整，需要 provider, apiKey" });
-    return;
+    return c.json({ ok: false, error: "参数不完整，需要 provider, apiKey" }, 400);
   }
   const result = await providerRegistry.fetchModels(config);
-  res.json(result);
+  return c.json(result);
 });
 
 // ── 供应商切换 ──
+app.post("/api/provider/switch", async (c) => {
+  const config = await c.req.json();
+  if (!config || !config.provider) {
+    return c.json({ ok: false, error: "参数不完整，需要 provider" }, 400);
+  }
+  try {
+    await agent.init(config);
+    return c.json({ ok: true, model: agent.modelInfo });
+  } catch (err) {
+    return c.json({ ok: false, error: err instanceof Error ? err.message : String(err) }, 500);
+  }
+});
+
 // ═══════════════════════════════════════════════════════
 //  Workplace API: 右侧边栏文件系统
 // ═══════════════════════════════════════════════════════
@@ -99,7 +106,7 @@ function isTextFile(filePath: string): boolean {
     ".rs", ".go", ".rb", ".php", ".yaml", ".yml", ".toml", ".ini",
     ".cfg", ".conf", ".log", ".sh", ".bat", ".ps1", ".env",
     ".sql", ".r", ".swift", ".kt", ".scala", ".vue", ".svelte",
-    ".svg", ".csv", ".tsv", ".gradle", ".lock"
+    ".svg", ".csv", ".tsv", ".gradle", ".lock",
   ]);
   if (textExts.has(ext)) return true;
   // 无扩展名或未知扩展名：检查前 512 字节是否含 null
@@ -128,49 +135,47 @@ function openInFileManager(dirPath: string): void {
   const child = spawn(
     platform === "win32" ? "explorer" : platform === "darwin" ? "open" : "xdg-open",
     [absPath],
-    { detached: true, stdio: "ignore" }
+    { detached: true, stdio: "ignore" },
   );
   child.unref();
 }
 
 // ── 配置 workplace 路径 ──
-app.post("/api/workplace/config", (req, res) => {
-  const { path: newPath } = req.body;
+app.post("/api/workplace/config", async (c) => {
+  const { path: newPath } = await c.req.json();
   if (!newPath) {
-    res.status(400).json({ ok: false, error: "缺少 path 参数" });
-    return;
+    return c.json({ ok: false, error: "缺少 path 参数" }, 400);
   }
   const resolved = path.resolve(newPath);
   try {
     fs.mkdirSync(resolved, { recursive: true });
     WORKPLACE_DIR = resolved;
     console.log(`[Workplace] 目录已切换: ${resolved}`);
-    res.json({ ok: true, path: resolved });
+    return c.json({ ok: true, path: resolved });
   } catch (err) {
-    res.status(500).json({ ok: false, error: (err as Error).message });
+    return c.json({ ok: false, error: (err as Error).message }, 500);
   }
 });
 
 // ── 在系统文件管理器中打开 ──
-app.post("/api/workplace/open", (_req, res) => {
+app.post("/api/workplace/open", (c) => {
   try {
     if (!fs.existsSync(WORKPLACE_DIR)) {
       fs.mkdirSync(WORKPLACE_DIR, { recursive: true });
     }
     openInFileManager(WORKPLACE_DIR);
-    res.json({ ok: true, path: WORKPLACE_DIR });
+    return c.json({ ok: true, path: WORKPLACE_DIR });
   } catch (err) {
-    res.status(500).json({ ok: false, error: (err as Error).message });
+    return c.json({ ok: false, error: (err as Error).message }, 500);
   }
 });
 
 // ── 列出目录内容 ──
-app.get("/api/workplace/list", (req, res) => {
-  const subPath = (req.query.path as string) || "";
+app.get("/api/workplace/list", (c) => {
+  const subPath = c.req.query("path") || "";
   const target = safeResolve(subPath);
   if (!target) {
-    res.status(400).json({ ok: false, error: "无效的路径" });
-    return;
+    return c.json({ ok: false, error: "无效的路径" }, 400);
   }
   try {
     const entries = fs.readdirSync(target, { withFileTypes: true });
@@ -200,111 +205,104 @@ app.get("/api/workplace/list", (req, res) => {
         if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1;
         return a.name.localeCompare(b.name);
       });
-    res.json({ ok: true, items, path: subPath || "/" });
+    return c.json({ ok: true, items, path: subPath || "/" });
   } catch (err) {
-    res.status(500).json({ ok: false, error: (err as Error).message });
+    return c.json({ ok: false, error: (err as Error).message }, 500);
   }
 });
 
 // ── 读取文件内容 ──
-app.get("/api/workplace/read", (req, res) => {
-  const filePath = req.query.path as string;
+app.get("/api/workplace/read", (c) => {
+  const filePath = c.req.query("path");
   if (!filePath) {
-    res.status(400).json({ ok: false, error: "缺少 path 参数" });
-    return;
+    return c.json({ ok: false, error: "缺少 path 参数" }, 400);
   }
   const target = safeResolve(filePath);
   if (!target) {
-    res.status(400).json({ ok: false, error: "无效的路径" });
-    return;
+    return c.json({ ok: false, error: "无效的路径" }, 400);
   }
   try {
     if (!fs.existsSync(target) || fs.statSync(target).isDirectory()) {
-      res.status(404).json({ ok: false, error: "文件不存在" });
-      return;
+      return c.json({ ok: false, error: "文件不存在" }, 404);
     }
     const isText = isTextFile(target);
     if (isText) {
       const content = fs.readFileSync(target, "utf-8");
-      res.json({ ok: true, content, isText: true, path: filePath });
+      return c.json({ ok: true, content, isText: true, path: filePath });
     } else {
       // 二进制文件：以 base64 返回
       const buf = fs.readFileSync(target);
-      res.json({ ok: true, content: buf.toString("base64"), isText: false, path: filePath });
+      return c.json({ ok: true, content: buf.toString("base64"), isText: false, path: filePath });
     }
   } catch (err) {
-    res.status(500).json({ ok: false, error: (err as Error).message });
+    return c.json({ ok: false, error: (err as Error).message }, 500);
   }
 });
 
 // ── 写入/创建文件 ──
-app.post("/api/workplace/write", (req, res) => {
-  const { path: filePath, content } = req.body;
+app.post("/api/workplace/write", async (c) => {
+  const { path: filePath, content } = await c.req.json();
   if (!filePath || content === undefined) {
-    res.status(400).json({ ok: false, error: "缺少 path 或 content" });
-    return;
+    return c.json({ ok: false, error: "缺少 path 或 content" }, 400);
   }
   const target = safeResolve(filePath);
   if (!target) {
-    res.status(400).json({ ok: false, error: "无效的路径" });
-    return;
+    return c.json({ ok: false, error: "无效的路径" }, 400);
   }
   try {
     // 确保父目录存在
     fs.mkdirSync(path.dirname(target), { recursive: true });
     fs.writeFileSync(target, content, "utf-8");
-    res.json({ ok: true, path: filePath });
+    return c.json({ ok: true, path: filePath });
   } catch (err) {
-    res.status(500).json({ ok: false, error: (err as Error).message });
+    return c.json({ ok: false, error: (err as Error).message }, 500);
   }
 });
 
-// ── 上传文件（multipart via base64 JSON）──
-app.post("/api/workplace/upload", (req, res) => {
-  const { path: filePath, content, encoding } = req.body;
-  if (!filePath || content === undefined) {
-    res.status(400).json({ ok: false, error: "缺少 path 或 content" });
-    return;
+// ── 上传文件（FormData / multipart）──
+app.post("/api/workplace/upload", async (c) => {
+  const body = await c.req.parseBody();
+  const file = body["file"] as File | undefined;
+  const filePath = body["path"] as string | undefined;
+
+  if (!file || !filePath) {
+    return c.json({ ok: false, error: "缺少 file 或 path" }, 400);
   }
+
   const target = safeResolve(filePath);
   if (!target) {
-    res.status(400).json({ ok: false, error: "无效的路径" });
-    return;
+    return c.json({ ok: false, error: "无效的路径" }, 400);
   }
+
   try {
     fs.mkdirSync(path.dirname(target), { recursive: true });
-    if (encoding === "base64") {
-      fs.writeFileSync(target, Buffer.from(content, "base64"));
-    } else {
-      fs.writeFileSync(target, content, "utf-8");
-    }
-    res.json({ ok: true, path: filePath });
+    const buffer = Buffer.from(await file.arrayBuffer());
+    fs.writeFileSync(target, buffer);
+    console.log(`[Workplace] 上传成功: ${filePath} (${file.size} bytes)`);
+    return c.json({ ok: true, path: filePath });
   } catch (err) {
-    res.status(500).json({ ok: false, error: (err as Error).message });
+    return c.json({ ok: false, error: (err as Error).message }, 500);
   }
 });
 
 // ── 删除文件/目录 ──
-app.post("/api/workplace/delete", (req, res) => {
-  const filePath = req.body?.path || (req.query.path as string);
+app.post("/api/workplace/delete", async (c) => {
+  const body = await c.req.json().catch(() => ({}));
+  const filePath = body?.path || c.req.query("path");
   if (!filePath) {
-    res.status(400).json({ ok: false, error: "缺少 path 参数" });
-    return;
+    return c.json({ ok: false, error: "缺少 path 参数" }, 400);
   }
   const target = safeResolve(filePath);
   if (!target) {
-    res.status(400).json({ ok: false, error: "无效的路径" });
-    return;
+    return c.json({ ok: false, error: "无效的路径" }, 400);
   }
   try {
     if (!fs.existsSync(target)) {
-      res.status(404).json({ ok: false, error: "路径不存在" });
-      return;
+      return c.json({ ok: false, error: "路径不存在" }, 404);
     }
     const isDir = fs.statSync(target).isDirectory();
     if (isDir) {
       // Windows 上用 cmd /c rmdir 避免 fs.rmSync 对中文路径崩溃
-      // 拆分参数传给 execFileSync 以绕过 cmd.exe 编码问题
       if (process.platform === "win32") {
         execFileSync("cmd", ["/c", "rmdir", "/s", "/q", target], { stdio: "ignore" });
       } else {
@@ -313,47 +311,86 @@ app.post("/api/workplace/delete", (req, res) => {
     } else {
       fs.unlinkSync(target);
     }
-    res.json({ ok: true, path: filePath });
+    return c.json({ ok: true, path: filePath });
   } catch (err) {
     console.error("[Workplace] 删除失败:", err instanceof Error ? err.message : err);
-    res.status(500).json({ ok: false, error: err instanceof Error ? err.message : String(err) });
+    return c.json({ ok: false, error: err instanceof Error ? err.message : String(err) }, 500);
   }
 });
 
 // ── 创建目录 ──
-app.post("/api/workplace/mkdir", (req, res) => {
-  const { path: dirPath } = req.body;
+app.post("/api/workplace/mkdir", async (c) => {
+  const { path: dirPath } = await c.req.json();
   if (!dirPath) {
-    res.status(400).json({ ok: false, error: "缺少 path" });
-    return;
+    return c.json({ ok: false, error: "缺少 path" }, 400);
   }
   const target = safeResolve(dirPath);
   if (!target) {
-    res.status(400).json({ ok: false, error: "无效的路径" });
-    return;
+    return c.json({ ok: false, error: "无效的路径" }, 400);
   }
   try {
     fs.mkdirSync(target, { recursive: true });
-    res.json({ ok: true, path: dirPath });
+    return c.json({ ok: true, path: dirPath });
   } catch (err) {
-    res.status(500).json({ ok: false, error: (err as Error).message });
+    return c.json({ ok: false, error: (err as Error).message }, 500);
   }
 });
 
-// ── 供应商切换 ──
-app.post("/api/provider/switch", async (req, res) => {
-  const config = req.body;
-  if (!config || !config.provider) {
-    res.status(400).json({ ok: false, error: "参数不完整，需要 provider" });
-    return;
+// ── 静态文件服务 ──
+const CLIENT_DIR = path.resolve("client");
+const MIME_TYPES: Record<string, string> = {
+  ".html": "text/html; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".js": "application/javascript; charset=utf-8",
+  ".json": "application/json",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".svg": "image/svg+xml",
+  ".ico": "image/x-icon",
+  ".webp": "image/webp",
+  ".woff": "font/woff",
+  ".woff2": "font/woff2",
+};
+
+app.get("*", (c) => {
+  const reqPath = c.req.path;
+  // 跳过非静态文件请求（API 路由应已匹配完毕）
+  if (reqPath.startsWith("/api/")) {
+    return c.text("Not Found", 404);
   }
+
+  const filePath = reqPath === "/" ? "/index.html" : reqPath;
+  const fullPath = path.join(CLIENT_DIR, filePath);
+
   try {
-    await agent.init(config);
-    res.json({ ok: true, model: agent.modelInfo });
-  } catch (err) {
-    res.status(500).json({ ok: false, error: err instanceof Error ? err.message : String(err) });
+    if (!fs.existsSync(fullPath) || fs.statSync(fullPath).isDirectory()) {
+      return c.text("Not Found", 404);
+    }
+    const content = fs.readFileSync(fullPath);
+    const ext = path.extname(fullPath).toLowerCase();
+    return c.body(content, 200, {
+      "Content-Type": MIME_TYPES[ext] || "application/octet-stream",
+    });
+  } catch {
+    return c.text("Not Found", 404);
   }
 });
+
+// ────────────────────────────────────────────────────
+//  HTTP + WebSocket 服务器
+// ────────────────────────────────────────────────────
+
+const nodeServer = createHttp();
+
+serve({
+  fetch: app.fetch,
+  createServer: () => nodeServer,
+  port: parseInt(process.env.PORT || "3000", 10),
+  hostname: "0.0.0.0",
+});
+
+const wss = new WebSocketServer({ server: nodeServer });
 
 // ── WebSocket 连接管理 ──
 wss.on("connection", (ws) => {
@@ -390,7 +427,6 @@ wss.on("connection", (ws) => {
 });
 
 // ── 热更新：监听前端文件变更 ──
-const clientDir = path.resolve("client");
 let reloadTimer: ReturnType<typeof setTimeout> | null = null;
 
 function broadcastReload() {
@@ -409,7 +445,7 @@ function broadcastReload() {
 
 // 监听 client 目录（包括子目录）
 try {
-  fs.watch(clientDir, { recursive: true }, (eventType, filename) => {
+  fs.watch(CLIENT_DIR, { recursive: true }, (eventType, filename) => {
     if (filename) {
       const ext = path.extname(filename).toLowerCase();
       // 只监听前端相关文件
@@ -423,10 +459,7 @@ try {
   console.warn("  ⚠️  文件监听启动失败（不影响运行）:", (err as Error).message);
 }
 
-// ── 启动 ──
-const PORT = parseInt(process.env.PORT || "3000", 10);
-httpServer.listen(PORT, () => {
-  console.log(`\n  🚀 pi-zero 聊天服务已启动`);
-  console.log(`  📡 http://localhost:${PORT}`);
-  console.log(`  🔑 请确保设置了 API Key 环境变量\n`);
-});
+// ── 启动完成 ──
+console.log(`\n  🚀 pi-zero 聊天服务已启动`);
+console.log(`  📡 http://localhost:${process.env.PORT || "3000"}`);
+console.log(`  🔑 请确保设置了 API Key 环境变量\n`);
