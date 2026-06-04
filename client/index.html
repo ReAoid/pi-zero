@@ -20,7 +20,13 @@
       <div id="status-dot"></div>
       <h1 class="theme-gradient-text">pi-zero</h1>
       <span class="badge">alpha</span>
+      <button class="nav-toggle-btn" id="nav-toggle" title="切换左侧导航">
+        <span id="nav-icon">◀</span>
+      </button>
       <span id="model-name"></span>
+      <button class="aside-toggle-btn" id="aside-toggle" title="切换右侧边栏">
+        <span id="aside-icon">▶</span>
+      </button>
       <button class="theme-btn" id="theme-toggle" title="亮暗切换">
         <span id="theme-icon">☀</span>
         <span id="theme-label">昼</span>
@@ -35,7 +41,7 @@
     <div class="holy-grail-body">
 
       <!-- 左侧导航栏（暂空） -->
-      <nav class="holy-grail-nav">
+      <nav class="holy-grail-nav" id="left-nav">
         <!-- 预留左侧导航 -->
       </nav>
 
@@ -49,7 +55,7 @@
       </main>
 
       <!-- 右侧边栏（暂空） -->
-      <aside class="holy-grail-aside">
+      <aside class="holy-grail-aside" id="right-aside">
         <!-- 预留右侧边栏 -->
       </aside>
 
@@ -106,6 +112,26 @@
         localStorage.setItem("pi-zero-theme", next);
       });
     })();
+
+    // ── 侧栏折叠/展开 ──
+    const navToggle  = document.getElementById("nav-toggle");
+    const asideToggle = document.getElementById("aside-toggle");
+    const leftNav    = document.getElementById("left-nav");
+    const rightAside = document.getElementById("right-aside");
+    const navIcon    = document.getElementById("nav-icon");
+    const asideIcon  = document.getElementById("aside-icon");
+
+    navToggle.addEventListener("click", () => {
+      const collapsed = leftNav.classList.toggle("collapsed");
+      navIcon.textContent = collapsed ? "▶" : "◀";
+      navToggle.title = collapsed ? "展开左侧导航" : "收起左侧导航";
+    });
+
+    asideToggle.addEventListener("click", () => {
+      const collapsed = rightAside.classList.toggle("collapsed");
+      asideIcon.textContent = collapsed ? "◀" : "▶";
+      asideToggle.title = collapsed ? "展开右侧边栏" : "收起右侧边栏";
+    });
 
     // ═══════════════════════════════════════════════════
     //  DOM refs

@@ -57,8 +57,19 @@ body {
   border-right: var(--border-1) solid var(--color-border);
   padding: var(--spacing-4);
   transition:
+    width var(--transition-normal),
+    padding var(--transition-normal),
     background var(--transition-normal),
     border-color var(--transition-normal);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.holy-grail-nav.collapsed {
+  width: 0;
+  padding-left: 0;
+  padding-right: 0;
+  border-right: none;
 }
 
 .holy-grail-main {
@@ -75,8 +86,19 @@ body {
   border-left: var(--border-1) solid var(--color-border);
   padding: var(--spacing-4);
   transition:
+    width var(--transition-normal),
+    padding var(--transition-normal),
     background var(--transition-normal),
     border-color var(--transition-normal);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.holy-grail-aside.collapsed {
+  width: 0;
+  padding-left: 0;
+  padding-right: 0;
+  border-left: none;
 }
 
 .holy-grail-footer {
@@ -392,6 +414,45 @@ header .badge {
 }
 
 .theme-btn:active {
+  transform: var(--transform-btn-active);
+  box-shadow: var(--shadow-btn-active);
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   侧栏折叠按钮
+   ═══════════════════════════════════════════════════════════ */
+.nav-toggle-btn,
+.aside-toggle-btn {
+  background: var(--color-surface);
+  border: var(--border-1) solid var(--color-border);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  padding: var(--spacing-2) var(--spacing-2);
+  cursor: pointer;
+  box-shadow: var(--shadow-btn);
+  font-family: var(--font-family-sans);
+  font-weight: var(--font-weight-medium);
+  line-height: 1;
+  transition:
+    background var(--transition-fast),
+    box-shadow var(--transition-fast),
+    transform var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+}
+
+.nav-toggle-btn:hover,
+.aside-toggle-btn:hover {
+  background: var(--color-surface-hover);
+  transform: var(--transform-btn-hover);
+  box-shadow: var(--shadow-btn-hover);
+}
+
+.nav-toggle-btn:active,
+.aside-toggle-btn:active {
   transform: var(--transform-btn-active);
   box-shadow: var(--shadow-btn-active);
 }
