@@ -92,7 +92,7 @@ export class ChatAgent {
       this.session = result.session;
     } else {
       console.log(`[Agent] 使用模型: ${piModel.provider}/${piModel.id}`);
-      this._modelInfo = { provider: piModel.provider, id: piModel.id };
+      this._modelInfo = { provider: piModel.provider, modelId: piModel.id };
 
       const result = await createAgentSession({
         model: piModel,

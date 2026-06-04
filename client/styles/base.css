@@ -1024,6 +1024,177 @@ header .badge {
 
 
 /* ═══════════════════════════════════════════════════════════
+   会话列表 (Session List)
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── 会话列表容器 ── */
+.session-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.session-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-4);
+  padding-bottom: var(--spacing-3);
+  border-bottom: var(--border-1) solid var(--color-border);
+}
+
+.session-header-title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+}
+
+/* ── 新会话按钮 ── */
+.session-btn-new {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  padding: var(--spacing-1) var(--spacing-3);
+  background: var(--color-btn-bg);
+  color: var(--color-btn-text);
+  border: var(--border-1) solid var(--color-border);
+  font-size: var(--font-size-xs);
+  font-family: var(--font-family-sans);
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  box-shadow: var(--shadow-btn);
+  transition:
+    background var(--transition-fast),
+    box-shadow var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.session-btn-new:hover {
+  background: var(--color-btn-bg-hover);
+  transform: var(--transform-btn-hover);
+  box-shadow: var(--shadow-btn-hover);
+}
+
+.session-btn-new:active {
+  transform: var(--transform-btn-active);
+  box-shadow: var(--shadow-btn-active);
+}
+
+/* ── 会话列表滚动区 ── */
+.session-list {
+  flex: 1;
+  overflow-y: auto;
+  margin: 0 calc(-1 * var(--spacing-4));
+  padding: 0 var(--spacing-2);
+}
+
+.session-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.session-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.session-list::-webkit-scrollbar-thumb {
+  background: var(--color-text-dim);
+}
+
+/* ── 单个会话项 ── */
+.session-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-2) var(--spacing-3);
+  margin-bottom: var(--spacing-1);
+  border: var(--border-1) solid transparent;
+  cursor: pointer;
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast);
+  position: relative;
+}
+
+.session-item:hover {
+  background: var(--color-surface-hover);
+}
+
+.session-item.active {
+  background: var(--color-surface-hover);
+  border-color: var(--color-accent);
+}
+
+.session-item-icon {
+  font-size: var(--font-size-sm);
+  flex-shrink: 0;
+  width: 20px;
+  text-align: center;
+  opacity: 0.6;
+}
+
+.session-item.active .session-item-icon {
+  opacity: 1;
+}
+
+.session-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.session-item-title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.session-item-time {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-dim);
+  margin-top: 1px;
+}
+
+.session-item-delete {
+  opacity: 0;
+  background: none;
+  border: none;
+  color: var(--color-text-dim);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  padding: var(--spacing-1);
+  line-height: 1;
+  transition: opacity var(--transition-fast), color var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.session-item:hover .session-item-delete {
+  opacity: 1;
+}
+
+.session-item-delete:hover {
+  color: var(--color-error, #8b5a5a);
+}
+
+/* ── 会话底部计数 ── */
+.session-footer {
+  margin-top: auto;
+  padding-top: var(--spacing-3);
+  border-top: var(--border-1) solid var(--color-border);
+  text-align: center;
+}
+
+.session-count {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-dim);
+}
+
+/* ═══════════════════════════════════════════════════════════
    选中文字
    ═══════════════════════════════════════════════════════════ */
 ::selection {
