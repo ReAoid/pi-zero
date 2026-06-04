@@ -11,6 +11,9 @@
  * 用户可在前端覆盖端点/模型，实现完全的 BYO (Bring Your Own) 模式。
  */
 
+import path from "node:path";
+import fs from "node:fs";
+
 // ── 支持的供应商类型 ──
 export type ProviderId = "openai" | "anthropic" | "deepseek" | "custom";
 
@@ -60,11 +63,18 @@ export interface ProviderConfig {
 
 // ── 供应商注册表（类似 pi 的 ModelRegistry） ──
 export class ProviderRegistry {
+  /** 持久化存储路径 */
+  private readonly storagePath: string;
   private currentConfig: ProviderConfig | null = null;
+
+  constructor(storagePath?: string) {
+    this.storagePath = storagePath || path.join("data", "config.json");
+  }
 
   /** 设置当前供应商配置（从前端接收或从环境变量读取） */
   setConfig(config: ProviderConfig): void {
     this.currentConfig = { ...config };
+    this.saveToFile();
   }
 
   /** 获取当前供应商配置，缺失字段用预设填充 */
@@ -181,6 +191,36 @@ export class ProviderRegistry {
     } catch (err) {
       return { ok: false, error: `连接失败: ${err instanceof Error ? err.message : String(err)}` };
     }
+  }
+
+  /** 持久化当前配置到文件 */
+  private saveToFile(): void {
+    try {
+      const dir = path.dirname(this.storagePath);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+      fs.writeFileSync(this.storagePath, JSON.stringify(this.currentConfig, null, 2), "utf-8");
+    } catch (err) {
+      console.warn("[Provider] 持久化配置失败:", (err as Error).message);
+    }
+  }
+
+  /** 从文件加载配置（返回是否成功） */
+  loadFromFile(): boolean {
+    try {
+      if (!fs.existsSync(this.storagePath)) return false;
+      const raw = fs.readFileSync(this.storagePath, "utf-8");
+      const cfg: ProviderConfig = JSON.parse(raw);
+      if (cfg && cfg.provider) {
+        this.currentConfig = { ...cfg };
+        console.log(`[Provider] 从文件恢复配置: ${cfg.provider}/${cfg.model}`);
+        return true;
+      }
+    } catch (err) {
+      console.warn("[Provider] 读取持久化文件失败:", (err as Error).message);
+    }
+    return false;
   }
 
   /** 从环境变量推断供应商配置 */

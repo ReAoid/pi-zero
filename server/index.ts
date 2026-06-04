@@ -8,9 +8,19 @@ import { providerRegistry } from "./provider-registry.js";
 
 // ── 初始化 pi Agent ──
 const agent = new ChatAgent();
+
+// 尝试从文件恢复持久化的供应商配置
+const configRestored = providerRegistry.loadFromFile();
+
 agent.init().catch((err: Error) => {
-  console.error("启动失败:", err.message);
-  process.exit(1);
+  if (configRestored) {
+    // 如果从文件恢复了配置但是 init 失败，可能是 API Key 过期了，不阻止启动
+    console.warn("[启动] 已恢复配置但初始化报错:", err.message);
+    console.warn("[启动] 请在设置面板重新配置供应商");
+  } else {
+    console.error("启动失败:", err.message);
+    process.exit(1);
+  }
 });
 
 // ── HTTP + WebSocket Server ──
