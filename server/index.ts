@@ -4,6 +4,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import path from "node:path";
 import fs from "node:fs";
 import { ChatAgent } from "./chat-agent.js";
+import { providerRegistry } from "./provider-registry.js";
 
 // ── 初始化 pi Agent ──
 const agent = new ChatAgent();
@@ -14,6 +15,7 @@ agent.init().catch((err: Error) => {
 
 // ── HTTP + WebSocket Server ──
 const app = express();
+app.use(express.json()); // 解析 JSON body
 const httpServer = createServer(app);
 const wss = new WebSocketServer({ server: httpServer });
 
@@ -22,7 +24,48 @@ app.use(express.static(path.resolve("client")));
 
 // 健康检查
 app.get("/api/status", (_req, res) => {
-  res.json({ ok: true, sessionId: agent.sessionId });
+  res.json({
+    ok: true,
+    sessionId: agent.sessionId,
+    model: agent.modelInfo,
+  });
+});
+
+// ── 供应商测试连接 ──
+app.post("/api/provider/test", async (req, res) => {
+  const config = req.body;
+  if (!config || !config.provider || !config.apiKey) {
+    res.status(400).json({ ok: false, error: "参数不完整，需要 provider, apiKey" });
+    return;
+  }
+  const result = await providerRegistry.testConnection(config);
+  res.json(result);
+});
+
+// ── 获取可用模型列表 ──
+app.post("/api/provider/models", async (req, res) => {
+  const config = req.body;
+  if (!config || !config.provider || !config.apiKey) {
+    res.status(400).json({ ok: false, error: "参数不完整，需要 provider, apiKey" });
+    return;
+  }
+  const result = await providerRegistry.fetchModels(config);
+  res.json(result);
+});
+
+// ── 供应商切换 ──
+app.post("/api/provider/switch", async (req, res) => {
+  const config = req.body;
+  if (!config || !config.provider) {
+    res.status(400).json({ ok: false, error: "参数不完整，需要 provider" });
+    return;
+  }
+  try {
+    await agent.init(config);
+    res.json({ ok: true, model: agent.modelInfo });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err instanceof Error ? err.message : String(err) });
+  }
 });
 
 // ── WebSocket 连接管理 ──

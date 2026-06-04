@@ -105,17 +105,20 @@
             <!-- 供应商 -->
             <div class="settings-pane" id="pane-provider">
               <h3 class="settings-pane__title">供应商配置</h3>
+              <p class="settings-hint" style="margin-bottom: 1rem;">支持四种模式：OpenAI / Anthropic / DeepSeek / 自定义</p>
+
+              <!-- ── 基本配置 ── -->
               <div class="settings-field">
                 <label class="settings-label">LLM 供应商</label>
                 <select class="settings-select" id="settings-provider">
                   <option value="openai">OpenAI</option>
                   <option value="anthropic">Anthropic</option>
-                  <option value="azure">Azure OpenAI</option>
-                  <option value="openrouter">OpenRouter</option>
-                  <option value="local">本地 (Ollama / llama.cpp)</option>
+                  <option value="deepseek">DeepSeek</option>
+                  <option value="custom">自定义 (Custom)</option>
                 </select>
-                <p class="settings-hint">选择 AI 模型供应商</p>
+                <p class="settings-hint">选择 AI 模型供应商，自定义可兼容任何 OpenAI 格式的 API</p>
               </div>
+
               <div class="settings-field">
                 <label class="settings-label">API Key</label>
                 <div class="settings-input-group">
@@ -124,18 +127,57 @@
                 </div>
                 <p class="settings-hint">输入您的 API 密钥，本地存储</p>
               </div>
+
               <div class="settings-field">
-                <label class="settings-label">API 端点（可选）</label>
-                <input class="settings-input" type="url" id="settings-api-endpoint" placeholder="https://api.openai.com/v1" />
-                <p class="settings-hint">自定义 API 地址，留空使用默认</p>
+                <label class="settings-label">API 端点</label>
+                <input class="settings-input" type="url" id="settings-api-endpoint"
+                  placeholder="https://api.openai.com/v1" />
+                <p class="settings-hint">
+                  <span id="endpoint-hint">OpenAI: https://api.openai.com/v1</span>
+                </p>
               </div>
-              <div class="settings-field">
-                <label class="settings-label">模型名称</label>
-                <input class="settings-input" type="text" id="settings-model" placeholder="gpt-4o" />
-                <p class="settings-hint">指定使用的模型名称</p>
+
+              <!-- ── 操作按钮 ── -->
+              <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem;">
+                <button class="settings-btn settings-btn--primary" id="settings-provider-save">保存配置</button>
+                <button class="settings-btn" id="settings-provider-test">测试连接</button>
+                <button class="settings-btn" id="settings-fetch-models">📦 获取可用模型</button>
               </div>
-              <button class="settings-btn settings-btn--primary" id="settings-provider-save">保存供应商配置</button>
-            </div>
+
+              <!-- ── 模型管理区域（替换默认模型字段） ── -->
+              <div id="model-management" style="display: none;">
+                <div class="settings-field" id="custom-model-field" style="display: none;">
+                  <label class="settings-label">默认模型（自定义）</label>
+                  <input class="settings-input" type="text" id="settings-model" placeholder="gpt-4o" />
+                  <p class="settings-hint" id="model-hint">仅自定义供应商需要手动填写模型名称</p>
+                </div>
+
+                <div class="settings-field">
+                  <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <label class="settings-label">📡 远程可用模型</label>
+                    <button class="settings-btn settings-btn--sm" id="models-add-all" title="全部添加">＋ 全部添加</button>
+                  </div>
+                  <div id="remote-model-list" class="model-list"
+                    style="max-height: 220px; overflow-y: auto; border: 1px solid var(--border-color, #444); border-radius: 6px; padding: 0.25rem;">
+                    <div class="model-list-empty" style="color: var(--muted, #888); padding: 1rem; text-align: center; font-size: 0.85rem;">
+                      点击「获取可用模型」加载列表
+                    </div>
+                  </div>
+                </div>
+
+                <div class="settings-field">
+                  <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <label class="settings-label">✅ 已启用模型</label>
+                    <button class="settings-btn settings-btn--sm" id="models-remove-all" title="全部删除">🗑 全部删除</button>
+                  </div>
+                  <div id="enabled-model-list" class="model-list"
+                    style="max-height: 220px; overflow-y: auto; border: 1px solid var(--border-color, #444); border-radius: 6px; padding: 0.25rem;">
+                    <div class="model-list-empty" style="color: var(--muted, #888); padding: 1rem; text-align: center; font-size: 0.85rem;">
+                      暂无已启用的模型
+                    </div>
+                  </div>
+                </div>
+              </div>
             <!-- 存储 -->
             <div class="settings-pane" id="pane-storage">
               <h3 class="settings-pane__title">存储设置</h3>
@@ -273,13 +315,61 @@
       syncSettingsThemeUI();
     });
 
-    // ── 供应商标签：本地存储 ──
+    // ── 供应商标签：本地存储 + 动态提示 ──
     const providerSelect = document.getElementById("settings-provider");
     const apiKeyInput    = document.getElementById("settings-api-key");
     const apiEndpointInput = document.getElementById("settings-api-endpoint");
     const modelInput     = document.getElementById("settings-model");
     const providerSaveBtn = document.getElementById("settings-provider-save");
+    const providerTestBtn = document.getElementById("settings-provider-test");
     const keyToggleBtn   = document.getElementById("settings-key-toggle");
+    const endpointHint   = document.getElementById("endpoint-hint");
+    const modelHint      = document.getElementById("model-hint");
+
+    // 四种供应商的默认配置
+    const PROVIDER_PRESETS = {
+      openai: {
+        endpoint: "https://api.openai.com/v1",
+        model: "gpt-4o",
+        hint: "OpenAI: https://api.openai.com/v1",
+        modelHint: "gpt-4o / gpt-4o-mini / gpt-5.4 / o3-mini ..."
+      },
+      anthropic: {
+        endpoint: "https://api.anthropic.com/v1",
+        model: "claude-sonnet-4-20250514",
+        hint: "Anthropic: https://api.anthropic.com/v1",
+        modelHint: "claude-sonnet-4-20250514 / claude-opus-4-8 / claude-haiku-4-5 ..."
+      },
+      deepseek: {
+        endpoint: "https://api.deepseek.com/v1",
+        model: "deepseek-chat",
+        hint: "DeepSeek: https://api.deepseek.com/v1",
+        modelHint: "deepseek-chat / deepseek-reasoner ..."
+      },
+      custom: {
+        endpoint: "https://",
+        model: "",
+        hint: "填入兼容 OpenAI 格式的自定义端点 URL",
+        modelHint: "输入你的自定义模型名称"
+      }
+    };
+
+    // 切换供应商时更新端点和模型的默认提示
+    function updateProviderHints() {
+      const preset = PROVIDER_PRESETS[providerSelect.value] || PROVIDER_PRESETS.custom;
+      endpointHint.textContent = preset.hint;
+      modelHint.textContent = preset.modelHint;
+
+      // 如果用户没有手动改过端点/模型，自动填入默认值
+      const saved = localStorage.getItem("pi-zero-provider");
+      const cfg = saved ? JSON.parse(saved) : {};
+      if (!cfg.endpoint || cfg.provider !== providerSelect.value) {
+        apiEndpointInput.placeholder = preset.endpoint;
+      }
+      if (!cfg.model || cfg.provider !== providerSelect.value) {
+        modelInput.placeholder = preset.model;
+      }
+    }
 
     // 加载已保存的供应商配置
     function loadProviderConfig() {
@@ -290,21 +380,85 @@
           providerSelect.value = cfg.provider || "openai";
           apiKeyInput.value    = cfg.apiKey || "";
           apiEndpointInput.value = cfg.endpoint || "";
+          apiEndpointInput.placeholder = PROVIDER_PRESETS[cfg.provider]?.endpoint || "https://";
           modelInput.value     = cfg.model || "";
+          modelInput.placeholder = PROVIDER_PRESETS[cfg.provider]?.model || "";
         } catch (e) {}
       }
+      updateProviderHints();
     }
     loadProviderConfig();
 
+    // 切换供应商时更新提示
+    providerSelect.addEventListener("change", updateProviderHints);
+
     providerSaveBtn.addEventListener("click", () => {
+      const provider = providerSelect.value;
+      const enabledModels = getEnabledModels();
+      // 非自定义供应商：默认模型取已启用列表第一个，或者预设默认
+      const defaultModel = provider === "custom"
+        ? (modelInput.value || PROVIDER_PRESETS.custom?.model || "")
+        : (enabledModels[0] || PROVIDER_PRESETS[provider]?.model || "");
       const config = {
-        provider: providerSelect.value,
+        provider: provider,
         apiKey:   apiKeyInput.value,
-        endpoint: apiEndpointInput.value,
-        model:    modelInput.value
+        endpoint: apiEndpointInput.value || PROVIDER_PRESETS[provider]?.endpoint || "",
+        model:    defaultModel,
+        enabledModels
       };
       localStorage.setItem("pi-zero-provider", JSON.stringify(config));
-      alert("供应商配置已保存");
+
+      // 同时通知后端切换
+      fetch("/api/provider/switch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(config)
+      }).then(res => res.json()).then(result => {
+        if (result.ok) {
+          alert("✅ 配置已保存并切换");
+        } else {
+          alert("⚠️ 配置已保存，但切换失败: " + (result.error || "未知错误"));
+        }
+      }).catch(err => {
+        alert("✅ 配置已保存（后端切换失败: " + err.message + "）");
+      });
+    });
+
+    // 测试连接（通过后端代理验证）
+    providerTestBtn.addEventListener("click", async () => {
+      const provider = providerSelect.value;
+      const enabledModels = getEnabledModels();
+      const testModel = provider === "custom"
+        ? (modelInput.value || PROVIDER_PRESETS.custom?.model || "")
+        : (enabledModels[0] || PROVIDER_PRESETS[provider]?.model || "");
+      const config = {
+        provider,
+        apiKey:   apiKeyInput.value,
+        endpoint: apiEndpointInput.value || PROVIDER_PRESETS[provider]?.endpoint || "",
+        model:    testModel
+      };
+
+      providerTestBtn.textContent = "⏳ 测试中...";
+      providerTestBtn.disabled = true;
+
+      try {
+        const res = await fetch("/api/provider/test", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(config)
+        });
+        const result = await res.json();
+        if (result.ok) {
+          alert(`✅ 连接成功！模型: ${result.model ?? "未知"}`);
+        } else {
+          alert(`❌ 连接失败: ${result.error}`);
+        }
+      } catch (err) {
+        alert(`❌ 请求失败: ${err.message}`);
+      } finally {
+        providerTestBtn.textContent = "测试连接";
+        providerTestBtn.disabled = false;
+      }
     });
 
     // API Key 显示/隐藏
@@ -313,6 +467,193 @@
       apiKeyInput.type = t === "password" ? "text" : "password";
       keyToggleBtn.textContent = t === "password" ? "🙈" : "👁";
     });
+
+    // ════════════════════════════════════════════════
+    //  模型管理
+    // ════════════════════════════════════════════════
+    const fetchModelsBtn    = document.getElementById("settings-fetch-models");
+    const modelManagement  = document.getElementById("model-management");
+    const remoteModelList  = document.getElementById("remote-model-list");
+    const enabledModelList = document.getElementById("enabled-model-list");
+    const addAllBtn        = document.getElementById("models-add-all");
+    const removeAllBtn     = document.getElementById("models-remove-all");
+
+    // ── 获取已启用的模型列表（localStorage） ──
+    function getEnabledModels() {
+      try {
+        const raw = localStorage.getItem("pi-zero-enabled-models");
+        return raw ? JSON.parse(raw) : [];
+      } catch { return []; }
+    }
+
+    function saveEnabledModels(models) {
+      localStorage.setItem("pi-zero-enabled-models", JSON.stringify(models));
+    }
+
+    // ── 获取远程模型列表（当前 provider 缓存） ──
+    let cachedRemoteModels = [];
+
+    // ── 渲染远程模型列表 ──
+    function renderRemoteModels(remoteModels, enabledModels) {
+      const enabled = new Set(enabledModels);
+      const notEnabled = remoteModels.filter(m => !enabled.has(m));
+
+      if (notEnabled.length === 0) {
+        remoteModelList.innerHTML =
+          `<div class="model-list-empty" style="color: var(--muted, #888); padding: 1rem; text-align: center; font-size: 0.85rem;">
+            所有模型均已添加 ✓
+          </div>`;
+        return;
+      }
+
+      remoteModelList.innerHTML = notEnabled.map(m =>
+        `<div class="model-item" style="display: flex; align-items: center; justify-content: space-between; padding: 0.3rem 0.5rem; border-radius: 4px; cursor: pointer;"
+              onmouseenter="this.style.background='var(--hover-bg, rgba(255,255,255,0.05))'"
+              onmouseleave="this.style.background='transparent'"
+              onclick="addSingleModel('${escapeHtml(m)}')">
+          <span style="font-size: 0.85rem; font-family: monospace;">${escapeHtml(m)}</span>
+          <span style="color: var(--accent, #4a9eff); font-size: 0.8rem;">＋ 添加</span>
+        </div>`
+      ).join("");
+    }
+
+    // ── 渲染已启用模型列表 ──
+    function renderEnabledModels(enabledModels) {
+      if (enabledModels.length === 0) {
+        enabledModelList.innerHTML =
+          `<div class="model-list-empty" style="color: var(--muted, #888); padding: 1rem; text-align: center; font-size: 0.85rem;">
+            暂无已启用的模型
+          </div>`;
+        return;
+      }
+
+      enabledModelList.innerHTML = enabledModels.map(m =>
+        `<div class="model-item" style="display: flex; align-items: center; justify-content: space-between; padding: 0.3rem 0.5rem; border-radius: 4px;"
+              onmouseenter="this.style.background='var(--hover-bg, rgba(255,255,255,0.05))'"
+              onmouseleave="this.style.background='transparent'">
+          <span style="font-size: 0.85rem; font-family: monospace; color: var(--success, #4caf50);">${escapeHtml(m)}</span>
+          <span style="color: var(--error, #f44336); font-size: 0.8rem; cursor: pointer;"
+                onclick="removeSingleModel('${escapeHtml(m)}')">✕ 删除</span>
+        </div>`
+      ).join("");
+    }
+
+    // ── 刷新全部 UI ──
+    function refreshModelUI() {
+      const enabled = getEnabledModels();
+      renderRemoteModels(cachedRemoteModels, enabled);
+      renderEnabledModels(enabled);
+    }
+
+    // ── 工具：HTML 转义 ──
+    function escapeHtml(str) {
+      return str.replace(/&/g, "&amp;").replace(/'/g, "\\'")
+                .replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    // ── 全局函数：单个添加模型（从 onclick 调用） ──
+    window.addSingleModel = function(modelId) {
+      const enabled = getEnabledModels();
+      if (!enabled.includes(modelId)) {
+        enabled.push(modelId);
+        saveEnabledModels(enabled);
+      }
+      refreshModelUI();
+    };
+
+    // ── 全局函数：单个删除模型 ──
+    window.removeSingleModel = function(modelId) {
+      const enabled = getEnabledModels().filter(m => m !== modelId);
+      saveEnabledModels(enabled);
+      refreshModelUI();
+    };
+
+    // ── 获取可用模型 ──
+    fetchModelsBtn.addEventListener("click", async () => {
+      const config = {
+        provider: providerSelect.value,
+        apiKey:   apiKeyInput.value,
+        endpoint: apiEndpointInput.value || PROVIDER_PRESETS[providerSelect.value]?.endpoint || "",
+        model:    modelInput.value || PROVIDER_PRESETS[providerSelect.value]?.model || ""
+      };
+
+      if (!config.apiKey) {
+        alert("请先填写 API Key");
+        return;
+      }
+
+      fetchModelsBtn.textContent = "⏳ 获取中...";
+      fetchModelsBtn.disabled = true;
+
+      try {
+        const res = await fetch("/api/provider/models", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(config)
+        });
+        const result = await res.json();
+
+        if (result.ok) {
+          cachedRemoteModels = result.models;
+          modelManagement.style.display = "block";
+          refreshModelUI();
+          console.log(`📦 获取到 ${result.models.length} 个模型`);
+        } else {
+          alert(`❌ 获取失败: ${result.error}`);
+        }
+      } catch (err) {
+        alert(`❌ 请求失败: ${err.message}`);
+      } finally {
+        fetchModelsBtn.textContent = "📦 获取可用模型";
+        fetchModelsBtn.disabled = false;
+      }
+    });
+
+    // ── 全部添加 ──
+    addAllBtn.addEventListener("click", () => {
+      const enabled = getEnabledModels();
+      const enabledSet = new Set(enabled);
+      const toAdd = cachedRemoteModels.filter(m => !enabledSet.has(m));
+      if (toAdd.length === 0) {
+        alert("没有可添加的新模型");
+        return;
+      }
+      saveEnabledModels([...enabled, ...toAdd]);
+      refreshModelUI();
+    });
+
+    // ── 全部删除 ──
+    removeAllBtn.addEventListener("click", () => {
+      if (getEnabledModels().length === 0) {
+        alert("已启用列表为空");
+        return;
+      }
+      if (confirm("确定要删除所有已启用的模型吗？")) {
+        saveEnabledModels([]);
+        refreshModelUI();
+      }
+    });
+
+    // ── 切换供应商时隐藏模型管理 ──
+    providerSelect.addEventListener("change", () => {
+      modelManagement.style.display = "none";
+      cachedRemoteModels = [];
+      updateProviderHints();
+    });
+
+    // ── 初始加载：如果有已启用模型，显示管理区 ──
+    (function initModelManagement() {
+      customModelField.style.display = providerSelect.value === "custom" ? "block" : "none";
+      const enabled = getEnabledModels();
+      if (enabled.length > 0) {
+        modelManagement.style.display = "block";
+        renderEnabledModels(enabled);
+        remoteModelList.innerHTML =
+          `<div class="model-list-empty" style="color: var(--muted, #888); padding: 1rem; text-align: center; font-size: 0.85rem;">
+            点击「获取可用模型」加载远程列表
+          </div>`;
+      }
+    })();
 
     // ── 存储标签：本地存储 ──
     const sessionPathInput   = document.getElementById("settings-session-path");
