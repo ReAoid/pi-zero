@@ -62,6 +62,7 @@
       <div class="modal-dialog modal-dialog--wide">
         <div class="modal-header">
           <h2>设置</h2>
+          <button class="settings-btn settings-btn--primary settings-btn--header" id="settings-provider-save">保存配置</button>
           <button class="modal-close-btn" id="modal-close" title="关闭">&times;</button>
         </div>
         <div class="modal-body modal-body--split">
@@ -139,13 +140,12 @@
 
               <!-- ── 操作按钮 ── -->
               <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem;">
-                <button class="settings-btn settings-btn--primary" id="settings-provider-save">保存配置</button>
                 <button class="settings-btn" id="settings-provider-test">测试连接</button>
                 <button class="settings-btn" id="settings-fetch-models">📦 获取可用模型</button>
               </div>
 
-              <!-- ── 模型管理区域（替换默认模型字段） ── -->
-              <div id="model-management" style="display: none;">
+              <!-- ── 模型管理区域 ── -->
+              <div id="model-management">
                 <div class="settings-field" id="custom-model-field" style="display: none;">
                   <label class="settings-label">默认模型（自定义）</label>
                   <input class="settings-input" type="text" id="settings-model" placeholder="gpt-4o" />
@@ -320,6 +320,7 @@
     const apiKeyInput    = document.getElementById("settings-api-key");
     const apiEndpointInput = document.getElementById("settings-api-endpoint");
     const modelInput     = document.getElementById("settings-model");
+    const customModelField = document.getElementById("custom-model-field");
     const providerSaveBtn = document.getElementById("settings-provider-save");
     const providerTestBtn = document.getElementById("settings-provider-test");
     const keyToggleBtn   = document.getElementById("settings-key-toggle");
@@ -595,7 +596,6 @@
 
         if (result.ok) {
           cachedRemoteModels = result.models;
-          modelManagement.style.display = "block";
           refreshModelUI();
           console.log(`📦 获取到 ${result.models.length} 个模型`);
         } else {
@@ -634,25 +634,17 @@
       }
     });
 
-    // ── 切换供应商时隐藏模型管理 ──
+    // ── 切换供应商时清空远程模型列表提示 ──
     providerSelect.addEventListener("change", () => {
-      modelManagement.style.display = "none";
       cachedRemoteModels = [];
+      renderRemoteModels([], getEnabledModels());
       updateProviderHints();
     });
 
-    // ── 初始加载：如果有已启用模型，显示管理区 ──
+    // ── 初始加载：渲染已启用模型 ──
     (function initModelManagement() {
       customModelField.style.display = providerSelect.value === "custom" ? "block" : "none";
-      const enabled = getEnabledModels();
-      if (enabled.length > 0) {
-        modelManagement.style.display = "block";
-        renderEnabledModels(enabled);
-        remoteModelList.innerHTML =
-          `<div class="model-list-empty" style="color: var(--muted, #888); padding: 1rem; text-align: center; font-size: 0.85rem;">
-            点击「获取可用模型」加载远程列表
-          </div>`;
-      }
+      renderEnabledModels(getEnabledModels());
     })();
 
     // ── 存储标签：本地存储 ──

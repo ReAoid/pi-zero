@@ -484,6 +484,12 @@ header .badge {
   color: var(--color-text);
 }
 
+/* header 中的保存配置按钮 */
+.settings-btn--header {
+  margin-left: auto;
+  margin-right: var(--spacing-3);
+}
+
 .modal-body {
   padding: var(--spacing-6);
   overflow-y: auto;
