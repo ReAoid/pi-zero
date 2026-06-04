@@ -42,12 +42,15 @@ body {
 .holy-grail {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .holy-grail-body {
   display: flex;
   flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .holy-grail-nav {
@@ -63,6 +66,9 @@ body {
     border-color var(--transition-normal);
   overflow: hidden;
   white-space: nowrap;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .holy-grail-nav.collapsed {
@@ -75,8 +81,10 @@ body {
 .holy-grail-main {
   flex: 1;
   min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .holy-grail-aside {
@@ -92,6 +100,9 @@ body {
     border-color var(--transition-normal);
   overflow: hidden;
   white-space: nowrap;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .holy-grail-aside.collapsed {
@@ -1012,13 +1023,27 @@ header .badge {
 /* ═══════════════════════════════════════════════════════════
    滚动条
    ═══════════════════════════════════════════════════════════ */
-#messages::-webkit-scrollbar { width: 6px; }
-#messages::-webkit-scrollbar-track { background: transparent; }
-#messages::-webkit-scrollbar-thumb {
+/* ── 通用滚动条样式 ── */
+#messages::-webkit-scrollbar,
+.session-list::-webkit-scrollbar,
+.aside-content::-webkit-scrollbar {
+  width: 6px;
+}
+#messages::-webkit-scrollbar-track,
+.session-list::-webkit-scrollbar-track,
+.aside-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+#messages::-webkit-scrollbar-thumb,
+.session-list::-webkit-scrollbar-thumb,
+.aside-content::-webkit-scrollbar-thumb {
   background: var(--color-text-dim);
   border: none;
+  border-radius: 3px;
 }
-#messages::-webkit-scrollbar-thumb:hover {
+#messages::-webkit-scrollbar-thumb:hover,
+.session-list::-webkit-scrollbar-thumb:hover,
+.aside-content::-webkit-scrollbar-thumb:hover {
   background: var(--color-text-muted);
 }
 
@@ -1193,6 +1218,14 @@ header .badge {
   font-size: var(--font-size-xs);
   color: var(--color-text-dim);
 }
+
+/* ── 右侧边栏内部滚动容器 ── */
+.aside-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
 
 /* ═══════════════════════════════════════════════════════════
    选中文字
