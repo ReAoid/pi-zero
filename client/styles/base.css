@@ -315,14 +315,19 @@ header .badge {
   border-top: var(--border-2) solid var(--color-border);
   box-shadow: var(--shadow-input-area);
   display: flex;
+  flex-direction: column;
   gap: var(--spacing-3);
-  align-items: flex-end;
   transition:
     background var(--transition-normal),
     border-color var(--transition-normal);
 }
 
-#input-area textarea {
+#input-row-top {
+  flex: 1;
+  display: flex;
+}
+
+#input-row-top textarea {
   flex: 1;
   background: var(--color-input-bg);
   border: var(--border-1) solid var(--color-input-border);
@@ -341,16 +346,205 @@ header .badge {
     color var(--transition-normal);
 }
 
-#input-area textarea:focus {
+#input-row-top textarea:focus {
   border-width: var(--border-2);
 }
 
-#input-area textarea::placeholder {
+#input-row-top textarea::placeholder {
   color: var(--color-text-dim);
 }
 
-#input-area button {
-  padding: var(--spacing-3) var(--spacing-8);
+#input-row-bottom {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.input-cmd-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.input-cmd-btn {
+  padding: var(--spacing-2) var(--spacing-3);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: var(--border-1) solid var(--color-border);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+  box-shadow: var(--shadow-btn);
+  transition:
+    background var(--transition-fast),
+    box-shadow var(--transition-fast),
+    transform var(--transition-fast);
+  min-width: 36px;
+  min-height: 36px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* 不带箭头，纯按钮 */
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+
+.input-cmd-btn:hover {
+  background: var(--color-surface-hover);
+  transform: var(--transform-btn-hover);
+  box-shadow: var(--shadow-btn-hover);
+}
+
+.input-cmd-btn:active {
+  transform: var(--transform-btn-active);
+  box-shadow: var(--shadow-btn-active);
+}
+
+/* 上拉命令列表 */
+.input-cmd-list {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 0;
+  min-width: 220px;
+  max-height: 220px;
+  overflow-y: auto;
+  background: var(--color-surface);
+  border: var(--border-1) solid var(--color-border);
+  box-shadow: var(--shadow-brutal);
+  z-index: 100;
+  list-style: none;
+  margin: 0;
+  padding: var(--spacing-1) 0;
+}
+
+.input-cmd-list.open {
+  display: block;
+}
+
+.input-cmd-list li {
+  padding: var(--spacing-2) var(--spacing-3);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  cursor: pointer;
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-2);
+  transition: background var(--transition-fast);
+}
+
+.input-cmd-list li:hover {
+  background: var(--color-surface-hover);
+}
+
+.input-cmd-list li .cmd-key {
+  font-family: var(--font-family-mono);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-accent);
+  white-space: nowrap;
+}
+
+.input-cmd-list li .cmd-desc {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.input-model-select-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.input-model-select-btn {
+  background: var(--color-surface);
+  border: var(--border-1) solid var(--color-border);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  font-family: var(--font-family-mono);
+  padding: var(--spacing-2) var(--spacing-3);
+  cursor: pointer;
+  outline: none;
+  box-shadow: var(--shadow-btn);
+  transition:
+    border-color var(--transition-fast),
+    background var(--transition-fast),
+    box-shadow var(--transition-fast);
+  min-height: 36px;
+  max-width: 240px;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* 完全隐藏所有浏览器原生下拉箭头 */
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: none;
+}
+
+.input-model-select-btn:hover {
+  background: var(--color-surface-hover);
+  box-shadow: var(--shadow-btn-hover);
+}
+
+.input-model-select-btn:focus-visible {
+  border-color: var(--color-accent);
+}
+
+
+/* 上拉列表 — 在按钮上方弹出 */
+.input-model-select-list {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  min-width: 100%;
+  max-height: 200px;
+  overflow-y: auto;
+  background: var(--color-surface);
+  border: var(--border-1) solid var(--color-border);
+  box-shadow: var(--shadow-brutal);
+  z-index: 100;
+  list-style: none;
+  margin: 0;
+  padding: var(--spacing-1) 0;
+}
+
+.input-model-select-list.open {
+  display: block;
+}
+
+.input-model-select-list li {
+  padding: var(--spacing-2) var(--spacing-3);
+  font-size: var(--font-size-sm);
+  font-family: var(--font-family-mono);
+  color: var(--color-text);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background var(--transition-fast);
+}
+
+.input-model-select-list li:hover {
+  background: var(--color-surface-hover);
+}
+
+.input-model-select-list li.active {
+  background: var(--color-accent);
+  color: var(--color-text-inverse);
+}
+
+.input-row-spacer {
+  flex: 1;
+}
+
+#send-btn {
+  padding: var(--spacing-2) var(--spacing-6);
   background: var(--color-btn-bg);
   color: var(--color-btn-text);
   border: var(--border-1) solid var(--color-border);
@@ -364,22 +558,22 @@ header .badge {
     background var(--transition-fast),
     box-shadow var(--transition-fast),
     transform var(--transition-fast);
-  min-height: 48px;
+  min-height: 36px;
   white-space: nowrap;
 }
 
-#input-area button:hover {
+#send-btn:hover {
   background: var(--color-btn-bg-hover);
   transform: var(--transform-btn-hover);
   box-shadow: var(--shadow-btn-hover);
 }
 
-#input-area button:active {
+#send-btn:active {
   transform: var(--transform-btn-active);
   box-shadow: var(--shadow-btn-active);
 }
 
-#input-area button:disabled {
+#send-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
   transform: none;
