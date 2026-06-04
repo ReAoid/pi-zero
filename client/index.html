@@ -73,10 +73,29 @@
         </div>
       </main>
 
-      <!-- 右侧边栏（暂空） -->
+      <!-- 右侧边栏：Workplace 文件系统 -->
       <aside class="holy-grail-aside" id="right-aside">
-        <div class="aside-content">
-          <!-- 预留右侧边栏 -->
+        <div class="aside-content workplace-panel">
+          <div class="workplace-header">
+            <span class="workplace-header-title">🛠 WorkPlace</span>
+            <div class="workplace-header-actions">
+              <button class="workplace-btn" id="wp-refresh" title="刷新">⟳</button>
+              <button class="workplace-btn" id="wp-open-folder" title="在文件管理器中打开">📂</button>
+            </div>
+          </div>
+          <div class="workplace-path-bar" id="wp-path-bar">
+            <span class="wp-path-item" data-path="">🏠</span>
+          </div>
+          <div class="workplace-file-list" id="wp-file-list">
+            <div class="workplace-loading">加载中...</div>
+          </div>
+          <!-- 拖放上传覆盖层 -->
+          <div class="workplace-drop-zone" id="wp-drop-zone">
+            <div class="workplace-drop-zone-content">
+              <span class="workplace-drop-icon">📂</span>
+              <span>拖放文件到此处上传</span>
+            </div>
+          </div>
         </div>
       </aside>
 
@@ -227,6 +246,11 @@
               <label class="settings-label">日志</label>
               <input class="settings-input" type="text" id="settings-log-path" placeholder="./data/logs" />
               <p class="settings-hint">运行日志存储路径</p>
+            </div>
+            <div class="settings-field" style="border-top: var(--border-2) solid var(--color-border); padding-top: var(--spacing-4); margin-top: var(--spacing-2);">
+              <label class="settings-label">🛠 WorkPlace 目录</label>
+              <input class="settings-input" type="text" id="settings-workplace-path" placeholder="./workplace" />
+              <p class="settings-hint">Agent 工作文件存放路径，留空默认使用项目根目录下的 workplace/</p>
             </div>
             <button class="settings-btn settings-btn--primary" id="settings-storage-save">保存存储配置</button>
           </div>
@@ -678,10 +702,11 @@
     })();
 
     // ── 存储标签：本地存储 ──
-    const sessionPathInput   = document.getElementById("settings-session-path");
-    const knowledgePathInput = document.getElementById("settings-knowledge-path");
-    const logPathInput       = document.getElementById("settings-log-path");
-    const storageSaveBtn     = document.getElementById("settings-storage-save");
+    const sessionPathInput     = document.getElementById("settings-session-path");
+    const knowledgePathInput   = document.getElementById("settings-knowledge-path");
+    const logPathInput         = document.getElementById("settings-log-path");
+    const workplacePathInput   = document.getElementById("settings-workplace-path");
+    const storageSaveBtn       = document.getElementById("settings-storage-save");
 
     function loadStorageConfig() {
       const saved = localStorage.getItem("pi-zero-storage");
@@ -691,6 +716,7 @@
           sessionPathInput.value   = cfg.sessions || "";
           knowledgePathInput.value = cfg.knowledge || "";
           logPathInput.value       = cfg.logs || "";
+          workplacePathInput.value = cfg.workplace || "";
         } catch (e) {}
       }
     }
@@ -700,10 +726,19 @@
       const config = {
         sessions:  sessionPathInput.value,
         knowledge: knowledgePathInput.value,
-        logs:      logPathInput.value
+        logs:      logPathInput.value,
+        workplace: workplacePathInput.value
       };
       localStorage.setItem("pi-zero-storage", JSON.stringify(config));
+      // 通知后端更新 workplace 路径
+      fetch("/api/workplace/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: workplacePathInput.value || "./workplace" })
+      }).catch(() => {});
       alert("存储配置已保存");
+      // 刷新 workplace
+      workplace.refresh();
     });
 
     // ── 侧栏折叠/展开 ──
@@ -725,6 +760,548 @@
       asideIcon.textContent = collapsed ? "◀" : "▶";
       asideToggle.title = collapsed ? "展开右侧边栏" : "收起右侧边栏";
     });
+
+    // ═══════════════════════════════════════════════════
+    //  Workplace 文件系统管理
+    // ═══════════════════════════════════════════════════
+
+    const workplace = {
+      currentPath: "",
+      fileList: document.getElementById("wp-file-list"),
+      pathBar: document.getElementById("wp-path-bar"),
+      dropZone: document.getElementById("wp-drop-zone"),
+
+      // ── 刷新文件列表 ──
+      async refresh(path) {
+        if (path !== undefined) this.currentPath = path || "";
+        this.fileList.innerHTML = '<div class="workplace-loading">加载中...</div>';
+        try {
+          const res = await fetch(`/api/workplace/list?path=${encodeURIComponent(this.currentPath)}`);
+          const data = await res.json();
+          if (data.ok) {
+            this.renderItems(data.items);
+            this.renderPathBar(data.path);
+          } else {
+            this.fileList.innerHTML = `<div class="workplace-error">❌ 加载失败: ${this._esc(data.error)}</div>`;
+          }
+        } catch (err) {
+          this.fileList.innerHTML = `<div class="workplace-error">❌ 请求失败: ${err.message}</div>`;
+        }
+      },
+
+      // ── 渲染文件项 ──
+      renderItems(items) {
+        if (items.length === 0) {
+          this.fileList.innerHTML = '<div class="workplace-empty">📂 空目录</div>';
+          return;
+        }
+        this.fileList.innerHTML = items.map(item => {
+          const icon = item.isDirectory ? "📁" : (item.isText ? "📄" : "📎");
+          const sizeHtml = item.isDirectory ? "" : `<span class="wp-file-size">${this._esc(item.sizeFormatted || "")}</span>`;
+          return `
+            <div class="wp-file-item ${item.isDirectory ? "wp-dir" : "wp-file"}" data-path="${this._esc(item.path)}" data-isdir="${item.isDirectory}" data-istext="${item.isText}">
+              <span class="wp-file-icon">${icon}</span>
+              <span class="wp-file-name">${this._esc(item.name)}</span>
+              ${sizeHtml}
+            </div>
+          `;
+        }).join("");
+
+        // ── 单击/双击逻辑 ──
+        this.fileList.querySelectorAll(".wp-file-item").forEach(el => {
+          let clickTimer = null;
+          el.addEventListener("click", (e) => {
+            if (clickTimer) {
+              // 双击
+              clearTimeout(clickTimer);
+              clickTimer = null;
+              this.handleOpen(el);
+            } else {
+              clickTimer = setTimeout(() => {
+                clickTimer = null;
+                // 单击选中
+                this.fileList.querySelectorAll(".wp-file-item.selected").forEach(s => s.classList.remove("selected"));
+                el.classList.add("selected");
+              }, 250);
+            }
+          });
+
+          // 右键菜单
+          el.addEventListener("contextmenu", (e) => {
+            e.preventDefault();
+            this.showContextMenu(e.clientX, e.clientY, el.dataset.path, el.dataset.isdir === "true");
+          });
+        });
+      },
+
+      // ── 打开文件/目录 ──
+      handleOpen(el) {
+        const path = el.dataset.path;
+        const isDir = el.dataset.isdir === "true";
+        if (isDir) {
+          this.navigateTo(path);
+        } else {
+          this.openFile(path);
+        }
+      },
+
+      // ── 进入目录 ──
+      navigateTo(path) {
+        this.currentPath = path;
+        this.refresh(path);
+      },
+
+      // ── 打开文件预览 ──
+      async openFile(path) {
+        try {
+          const res = await fetch(`/api/workplace/read?path=${encodeURIComponent(path)}`);
+          const data = await res.json();
+          if (data.ok) {
+            if (data.isText) {
+              this.showFilePreview(path, data.content);
+            } else {
+              if (confirm(`二进制文件 "${path}" 无法预览。要下载吗？`)) {
+                this.downloadFile(path, data.content);
+              }
+            }
+          } else {
+            alert("❌ " + data.error);
+          }
+        } catch (err) {
+          alert("❌ 读取失败: " + err.message);
+        }
+      },
+
+      // ── 文件预览弹框 ──
+      showFilePreview(path, content) {
+        const old = document.querySelector(".workplace-preview-overlay");
+        if (old) old.remove();
+
+        const overlay = document.createElement("div");
+        overlay.className = "workplace-preview-overlay";
+
+        const header = document.createElement("div");
+        header.className = "workplace-preview-header";
+        header.innerHTML = `
+          <span class="workplace-preview-title">${this._esc(path)}</span>
+          <div class="workplace-preview-actions">
+            <button class="wp-preview-btn wp-preview-copy" title="复制内容">📋</button>
+            <button class="wp-preview-btn wp-preview-download" title="下载">⬇</button>
+            <button class="wp-preview-btn wp-preview-edit" title="编辑">✏</button>
+            <button class="wp-preview-btn wp-preview-close" title="关闭">✕</button>
+          </div>
+        `;
+
+        const body = document.createElement("div");
+        body.className = "workplace-preview-body";
+        body.innerHTML = `<pre class="workplace-preview-content"><code>${this._esc(content)}</code></pre>`;
+
+        overlay.appendChild(header);
+        overlay.appendChild(body);
+        document.body.appendChild(overlay);
+
+        // 事件
+        header.querySelector(".wp-preview-close").addEventListener("click", () => overlay.remove());
+        header.querySelector(".wp-preview-copy").addEventListener("click", async () => {
+          try {
+            await navigator.clipboard.writeText(content);
+            alert("✅ 已复制到剪贴板");
+          } catch { alert("❌ 复制失败"); }
+        });
+        header.querySelector(".wp-preview-download").addEventListener("click", () => {
+          const a = document.createElement("a");
+          const blob = new Blob([content], { type: "text/plain" });
+          a.href = URL.createObjectURL(blob);
+          a.download = path.split("/").pop() || "file";
+          a.click();
+          URL.revokeObjectURL(a.href);
+        });
+        header.querySelector(".wp-preview-edit").addEventListener("click", () => {
+          this.openEditor(path, content);
+          overlay.remove();
+        });
+
+        overlay.addEventListener("click", (e) => {
+          if (e.target === overlay) overlay.remove();
+        });
+
+        const escHandler = (e) => { if (e.key === "Escape") { overlay.remove(); document.removeEventListener("keydown", escHandler); } };
+        document.addEventListener("keydown", escHandler);
+      },
+
+      // ── 内联编辑器 ──
+      openEditor(path, content) {
+        const overlay = document.createElement("div");
+        overlay.className = "workplace-preview-overlay";
+
+        const header = document.createElement("div");
+        header.className = "workplace-preview-header";
+        header.innerHTML = `
+          <span class="workplace-preview-title">✏️ ${this._esc(path)}</span>
+          <div class="workplace-preview-actions">
+            <button class="wp-preview-btn wp-preview-save" title="保存" style="color: var(--color-success, #4caf50);">💾 保存</button>
+            <button class="wp-preview-btn wp-preview-close" title="取消">✕</button>
+          </div>
+        `;
+
+        const body = document.createElement("div");
+        body.className = "workplace-preview-body";
+        body.style.padding = "0";
+        const textarea = document.createElement("textarea");
+        textarea.className = "workplace-editor-textarea";
+        textarea.value = content;
+        body.appendChild(textarea);
+
+        overlay.appendChild(header);
+        overlay.appendChild(body);
+        document.body.appendChild(overlay);
+
+        const closeBtn = header.querySelector(".wp-preview-close");
+        const saveBtn = header.querySelector(".wp-preview-save");
+
+        closeBtn.addEventListener("click", () => {
+          if (textarea.value !== content) {
+            if (confirm("有未保存的更改，确定放弃吗？")) overlay.remove();
+          } else {
+            overlay.remove();
+          }
+        });
+
+        saveBtn.addEventListener("click", async () => {
+          try {
+            const res = await fetch("/api/workplace/write", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ path, content: textarea.value })
+            });
+            const data = await res.json();
+            if (data.ok) {
+              alert("✅ 已保存");
+              overlay.remove();
+              this.refresh();
+            } else {
+              alert("❌ " + data.error);
+            }
+          } catch (err) {
+            alert("❌ 保存失败: " + err.message);
+          }
+        });
+
+        textarea.addEventListener("keydown", (e) => {
+          if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+            e.preventDefault();
+            saveBtn.click();
+          }
+        });
+
+        const escHandler = (e) => { if (e.key === "Escape") { closeBtn.click(); document.removeEventListener("keydown", escHandler); } };
+        document.addEventListener("keydown", escHandler);
+
+        textarea.focus();
+      },
+
+      // ── 下载二进制文件 ──
+      downloadFile(path, base64Content) {
+        const a = document.createElement("a");
+        a.href = "data:application/octet-stream;base64," + base64Content;
+        a.download = path.split("/").pop() || "file";
+        a.click();
+        URL.revokeObjectURL(a.href);
+      },
+
+      // ── 渲染面包屑路径 ──
+      renderPathBar(pathStr) {
+        const parts = pathStr === "/" || !pathStr ? [] : pathStr.split("/");
+        let html = '<span class="wp-path-item wp-path-root" data-path="">🏠</span>';
+        let accumulated = "";
+        parts.forEach((part, i) => {
+          accumulated = accumulated ? accumulated + "/" + part : part;
+          const isLast = i === parts.length - 1;
+          html += `<span class="wp-path-sep">/</span>`;
+          html += `<span class="wp-path-item ${isLast ? "wp-path-current" : ""}" data-path="${this._esc(accumulated)}">${this._esc(part)}</span>`;
+        });
+        this.pathBar.innerHTML = html;
+
+        this.pathBar.querySelectorAll(".wp-path-item").forEach(el => {
+          el.addEventListener("click", () => {
+            this.navigateTo(el.dataset.path);
+          });
+        });
+      },
+
+      // ── 右键菜单 ──
+      showContextMenu(x, y, path, isDir) {
+        const old = document.querySelector(".workplace-context-menu");
+        if (old) old.remove();
+
+        const menu = document.createElement("div");
+        menu.className = "workplace-context-menu";
+        menu.style.left = x + "px";
+        menu.style.top = y + "px";
+
+        const actions = [
+          { label: isDir ? "📂 打开" : "📄 打开", action: () => { if (isDir) this.navigateTo(path); else this.openFile(path); } },
+          { label: "✏️ 重命名", action: () => this.renameItem(path, isDir) },
+          { label: "📋 复制路径", action: () => { navigator.clipboard.writeText(path); alert("已复制: " + path); } },
+          { label: "🗑 删除", action: () => this.deleteItem(path, isDir), danger: true },
+        ];
+
+        menu.innerHTML = actions.map(a =>
+          `<div class="wp-context-item ${a.danger ? "wp-context-danger" : ""}">${this._esc(a.label)}</div>`
+        ).join("");
+
+        document.body.appendChild(menu);
+
+        menu.querySelectorAll(".wp-context-item").forEach((el, i) => {
+          el.addEventListener("click", () => {
+            actions[i].action();
+            menu.remove();
+          });
+        });
+
+        const close = (e) => { if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener("click", close); } };
+        setTimeout(() => document.addEventListener("click", close), 0);
+      },
+
+      // ── 删除 ──
+      async deleteItem(path, isDir) {
+        const type = isDir ? "文件夹" : "文件";
+        if (!confirm(`确定删除${type} "${path}" 吗？`)) return;
+        try {
+          const res = await fetch("/api/workplace/delete", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ path })
+          });
+          const data = await res.json();
+          if (data.ok) {
+            this.refresh();
+          } else {
+            alert("❌ " + data.error);
+          }
+        } catch (err) {
+          alert("❌ " + err.message);
+        }
+      },
+
+      // ── 重命名 ──
+      async renameItem(path, isDir) {
+        const oldName = path.split("/").pop();
+        const newName = prompt(`重命名 ${isDir ? "文件夹" : "文件"}:`, oldName);
+        if (!newName || newName === oldName) return;
+
+        const parentPath = path.includes("/") ? path.substring(0, path.lastIndexOf("/")) : "";
+        const newPath = parentPath ? parentPath + "/" + newName : newName;
+
+        if (isDir) {
+          alert("⚠️ 暂不支持重命名文件夹，请手动操作");
+          return;
+        }
+
+        try {
+          const readRes = await fetch(`/api/workplace/read?path=${encodeURIComponent(path)}`);
+          const readData = await readRes.json();
+          if (!readData.ok) { alert("❌ 读取失败: " + readData.error); return; }
+
+          const writeRes = await fetch("/api/workplace/write", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ path: newPath, content: readData.content })
+          });
+          const writeData = await writeRes.json();
+          if (!writeData.ok) { alert("❌ " + writeData.error); return; }
+
+          await fetch("/api/workplace/delete", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ path })
+          });
+          this.refresh();
+        } catch (err) {
+          alert("❌ " + err.message);
+        }
+      },
+
+      // ── 新建文件 ──
+      async createFile() {
+        const name = prompt("输入文件名:");
+        if (!name) return;
+        const fullPath = this.currentPath ? this.currentPath + "/" + name : name;
+        try {
+          const res = await fetch("/api/workplace/write", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ path: fullPath, content: "" })
+          });
+          const data = await res.json();
+          if (data.ok) {
+            this.openEditor(fullPath, "");
+            this.refresh();
+          } else {
+            alert("❌ " + data.error);
+          }
+        } catch (err) {
+          alert("❌ " + err.message);
+        }
+      },
+
+      // ── 新建文件夹 ──
+      async createDir() {
+        const name = prompt("输入文件夹名称:");
+        if (!name) return;
+        const fullPath = this.currentPath ? this.currentPath + "/" + name : name;
+        try {
+          const res = await fetch("/api/workplace/mkdir", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ path: fullPath })
+          });
+          const data = await res.json();
+          if (data.ok) {
+            this.refresh();
+          } else {
+            alert("❌ " + data.error);
+          }
+        } catch (err) {
+          alert("❌ " + err.message);
+        }
+      },
+
+      // ── 上传文件（通过拖放）──
+      uploadFile(file) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = async (e) => {
+            const content = e.target.result;
+            const isText = file.type.startsWith("text/") ||
+              /\.(txt|md|json|js|ts|html|css|py|xml|yaml|yml|sh|log|env|conf|ini|toml|svg|csv|tsv)$/i.test(file.name);
+            const fullPath = this.currentPath ? this.currentPath + "/" + file.name : file.name;
+            try {
+              const res = await fetch("/api/workplace/upload", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  path: fullPath,
+                  content: isText ? content : (content.split(",")[1] || content),
+                  encoding: isText ? "utf-8" : "base64"
+                })
+              });
+              const data = await res.json();
+              if (data.ok) {
+                this.refresh();
+                resolve();
+              } else {
+                reject(data.error);
+              }
+            } catch (err) {
+              reject(err.message);
+            }
+          };
+          if (file.type.startsWith("text/") || /\\.(txt|md|json|js|ts|html|css|py|xml|yaml|yml|sh|log|env|conf|ini|toml|svg|csv|tsv)$/i.test(file.name)) {
+            reader.readAsText(file);
+          } else {
+            reader.readAsDataURL(file);
+          }
+        });
+      },
+
+      // ── 初始化拖放 ──
+      initDragDrop() {
+        const aside = document.getElementById("right-aside");
+        const dropZone = this.dropZone;
+
+        aside.addEventListener("dragenter", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dropZone.classList.add("active");
+        });
+
+        aside.addEventListener("dragover", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dropZone.classList.add("active");
+        });
+
+        aside.addEventListener("dragleave", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (e.relatedTarget && aside.contains(e.relatedTarget)) return;
+          dropZone.classList.remove("active");
+        });
+
+        aside.addEventListener("drop", async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dropZone.classList.remove("active");
+
+          const files = e.dataTransfer.files;
+          if (files.length === 0) return;
+
+          dropZone.classList.add("uploading");
+          dropZone.querySelector(".workplace-drop-zone-content").innerHTML =
+            `<span class="workplace-drop-icon">⏳</span><span>上传中 ${files.length} 个文件...</span>`;
+
+          let success = 0, failed = 0;
+          for (let i = 0; i < files.length; i++) {
+            try {
+              await this.uploadFile(files[i]);
+              success++;
+            } catch (err) {
+              console.error("上传失败:", files[i].name, err);
+              failed++;
+            }
+          }
+
+          dropZone.classList.remove("uploading");
+          dropZone.querySelector(".workplace-drop-zone-content").innerHTML =
+            `<span class="workplace-drop-icon">📂</span><span>${success} 个文件上传成功${failed ? ", " + failed + " 个失败" : ""}</span>`;
+
+          setTimeout(() => {
+            dropZone.querySelector(".workplace-drop-zone-content").innerHTML =
+              `<span class="workplace-drop-icon">📂</span><span>拖放文件到此处上传</span>`;
+          }, 2000);
+        });
+      },
+
+      // ── 工具函数 ──
+      _esc(str) {
+        if (typeof str !== "string") return String(str);
+        const el = document.createElement("div");
+        el.textContent = str;
+        return el.innerHTML;
+      }
+    };
+
+    // ── 绑定 Workplace 按钮 ──
+    document.getElementById("wp-refresh").addEventListener("click", () => workplace.refresh());
+    document.getElementById("wp-open-folder").addEventListener("click", () => {
+      fetch("/api/workplace/open", { method: "POST" })
+        .then(res => res.json())
+        .then(data => {
+          if (!data.ok) alert("❌ " + data.error);
+        })
+        .catch(err => alert("❌ 打开文件管理器失败: " + err.message));
+    });
+
+    // ── 初始化 Workplace（从存储配置读取路径） ──
+    (function initWorkplace() {
+      // 通知后端 workplace 路径
+      const stored = localStorage.getItem("pi-zero-storage");
+      if (stored) {
+        try {
+          const cfg = JSON.parse(stored);
+          if (cfg.workplace) {
+            fetch("/api/workplace/config", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ path: cfg.workplace })
+            }).catch(() => {});
+          }
+        } catch (e) {}
+      }
+      workplace.refresh();
+      workplace.initDragDrop();
+    })();
 
     // ═══════════════════════════════════════════════════
     //  DOM refs

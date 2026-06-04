@@ -1239,6 +1239,368 @@ header .badge {
 /* ═══════════════════════════════════════════════════════════
    关键帧动画（主题无关，留在此处）
    ═══════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════
+   Workplace 右侧文件系统
+   ═══════════════════════════════════════════════════════════ */
+
+.workplace-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  height: 100%;
+  overflow: hidden;
+  font-size: var(--font-size-sm);
+  user-select: none;
+}
+
+.workplace-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: var(--spacing-2);
+  border-bottom: var(--border-2) solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.workplace-header-title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.workplace-header-actions {
+  display: flex;
+  gap: var(--spacing-1);
+}
+
+.workplace-btn {
+  background: none;
+  border: var(--border-1) solid var(--color-border);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  padding: var(--spacing-1) var(--spacing-2);
+  cursor: pointer;
+  line-height: 1;
+  transition: background var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  min-height: 28px;
+}
+
+.workplace-btn:hover {
+  background: var(--color-surface-hover);
+}
+
+/* ── 面包屑路径 ── */
+.workplace-path-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  gap: var(--spacing-1);
+  padding: var(--spacing-1) 0;
+  font-size: var(--font-size-xs);
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-height: 28px;
+}
+
+.workplace-path-bar::-webkit-scrollbar {
+  height: 2px;
+}
+.workplace-path-bar::-webkit-scrollbar-thumb {
+  background: var(--color-text-dim);
+}
+
+.wp-path-item {
+  cursor: pointer;
+  color: var(--color-accent);
+  font-family: var(--font-family-mono);
+  padding: var(--spacing-1) var(--spacing-1);
+  border: var(--border-1) solid transparent;
+  transition: background var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.wp-path-item:hover {
+  background: var(--color-surface-hover);
+}
+
+.wp-path-current {
+  color: var(--color-text);
+  font-weight: var(--font-weight-semibold);
+  cursor: default;
+}
+
+.wp-path-sep {
+  color: var(--color-text-dim);
+  flex-shrink: 0;
+}
+
+/* ── 文件列表 ── */
+.workplace-file-list {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  border: var(--border-1) solid var(--color-border);
+  background: var(--color-bg);
+}
+
+.workplace-file-list::-webkit-scrollbar {
+  width: 4px;
+}
+.workplace-file-list::-webkit-scrollbar-thumb {
+  background: var(--color-text-dim);
+}
+
+.wp-file-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-2) var(--spacing-2);
+  cursor: pointer;
+  border-bottom: 1px solid var(--color-border);
+  transition: background var(--transition-fast);
+  min-height: 32px;
+}
+
+.wp-file-item:last-child {
+  border-bottom: none;
+}
+
+.wp-file-item:hover {
+  background: var(--color-surface-hover);
+}
+
+.wp-file-item.selected {
+  background: var(--color-surface-hover);
+  border-left: 2px solid var(--color-accent);
+}
+
+.wp-file-icon {
+  font-size: var(--font-size-base);
+  flex-shrink: 0;
+  width: 20px;
+  text-align: center;
+  line-height: 1;
+}
+
+.wp-file-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-size-xs);
+  font-family: var(--font-family-mono);
+  color: var(--color-text);
+}
+
+.wp-file-size {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-dim);
+  flex-shrink: 0;
+  font-family: var(--font-family-mono);
+}
+
+.wp-dir .wp-file-name {
+  color: var(--color-accent);
+  font-weight: var(--font-weight-medium);
+}
+
+.workplace-loading,
+.workplace-error,
+.workplace-empty {
+  padding: var(--spacing-6);
+  text-align: center;
+  color: var(--color-text-dim);
+  font-size: var(--font-size-xs);
+}
+
+.workplace-error {
+  color: var(--color-error);
+}
+
+/* ── 拖放上传覆盖层 ── */
+.workplace-drop-zone {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 60;
+  backdrop-filter: blur(2px);
+}
+
+.workplace-drop-zone.active {
+  display: flex;
+}
+
+.workplace-drop-zone-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-3);
+  padding: var(--spacing-8);
+  border: 2px dashed var(--color-accent);
+  color: var(--color-text-inverse);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.workplace-drop-icon {
+  font-size: 32px;
+}
+
+/* ── 右键菜单 ── */
+.workplace-context-menu {
+  position: fixed;
+  z-index: 300;
+  min-width: 160px;
+  background: var(--color-surface);
+  border: var(--border-1) solid var(--color-border);
+  box-shadow: var(--shadow-brutal);
+  padding: var(--spacing-1) 0;
+}
+
+.wp-context-item {
+  padding: var(--spacing-2) var(--spacing-4);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  white-space: nowrap;
+}
+
+.wp-context-item:hover {
+  background: var(--color-surface-hover);
+}
+
+.wp-context-danger {
+  color: var(--color-error);
+}
+
+/* ── 文件预览弹框 ── */
+.workplace-preview-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 250;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
+  animation: modal-fade-in 0.15s ease-out;
+}
+
+.workplace-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-3) var(--spacing-5);
+  background: var(--color-surface);
+  border-bottom: var(--border-2) solid var(--color-border);
+  flex-shrink: 0;
+  z-index: 1;
+}
+
+.workplace-preview-title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  font-family: var(--font-family-mono);
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workplace-preview-actions {
+  display: flex;
+  gap: var(--spacing-1);
+  flex-shrink: 0;
+}
+
+.wp-preview-btn {
+  background: none;
+  border: var(--border-1) solid var(--color-border);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  padding: var(--spacing-1) var(--spacing-2);
+  cursor: pointer;
+  line-height: 1;
+  transition: background var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  min-height: 28px;
+}
+
+.wp-preview-btn:hover {
+  background: var(--color-surface-hover);
+}
+
+.workplace-preview-body {
+  flex: 1;
+  overflow: auto;
+  padding: var(--spacing-4);
+  background: var(--color-bg-alt);
+}
+
+.workplace-preview-content {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-size: var(--font-size-xs);
+  font-family: var(--font-family-mono);
+  line-height: var(--line-height-loose);
+  color: var(--color-text);
+}
+
+.workplace-preview-content code {
+  font-family: inherit;
+}
+
+/* ── 编辑器文本域 ── */
+.workplace-editor-textarea {
+  width: 100%;
+  height: 100%;
+  border: none;
+  outline: none;
+  resize: none;
+  background: var(--color-bg-alt);
+  color: var(--color-text);
+  font-size: var(--font-size-xs);
+  font-family: var(--font-family-mono);
+  line-height: var(--line-height-loose);
+  padding: var(--spacing-4);
+  tab-size: 2;
+}
+
+.workplace-editor-textarea:focus {
+  background: var(--color-bg);
+}
+
+/* ── 侧边栏 aside-content 需 position: relative 供 drop-zone 定位 ── */
+.aside-content {
+  position: relative;
+}
+
+/* ── 浅色主题微调 ── */
+[data-theme="light"] .workplace-drop-zone {
+  background: rgba(255, 255, 255, 0.5);
+}
+[data-theme="light"] .workplace-drop-zone-content {
+  color: var(--color-text);
+  background: rgba(255, 255, 255, 0.3);
+}
+
+
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50%      { opacity: 0.3; }

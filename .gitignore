@@ -8,3 +8,7 @@ dist/
 bash/*
 !/bash/busybox64.exe
 !/bash/setup-posix.js
+
+# Workplace 文件（保留 .gitkeep）
+workplace/*
+!workplace/.gitkeep
