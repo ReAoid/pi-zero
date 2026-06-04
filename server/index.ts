@@ -5,6 +5,13 @@ import path from "node:path";
 import fs from "node:fs";
 import { ChatAgent } from "./chat-agent.js";
 import { providerRegistry } from "./provider-registry.js";
+import { injectPosixPath } from "./posix-env.js";
+
+// ═══════════════════════════════════════════════════════
+// 在 pi SDK 初始化前，注入 POSIX 命令环境到 PATH
+// ── 使 bash 工具能找到 ls、cat、sed、grep 等命令 ──
+injectPosixPath();
+// ═══════════════════════════════════════════════════════
 
 // ── 初始化 pi Agent ──
 const agent = new ChatAgent();

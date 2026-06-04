@@ -2,3 +2,9 @@ node_modules/
 dist/
 .env
 *.log
+
+# POSIX 命令环境（bash/）
+# busybox64.exe 和 setup-posix.js 提交到 git，其他 applet 硬链接忽略
+bash/*
+!/bash/busybox64.exe
+!/bash/setup-posix.js

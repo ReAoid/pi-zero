@@ -4,7 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch server/index.ts"
+    "dev": "tsx watch server/index.ts",
+    "setup:posix": "node bash/setup-posix.js",
+    "setup": "npm run setup:posix",
+    "postinstall": "node bash/setup-posix.js"
   },
   "dependencies": {
     "@earendil-works/pi-coding-agent": "latest",
