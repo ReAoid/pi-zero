@@ -148,7 +148,7 @@ let KNOWLEDGE_DIR = path.resolve("data", "knowledge");
 let LOGS_DIR = path.resolve("data", "logs");
 
 // ── 存储配置持久化文件 ──
-const STORAGE_CONFIG_PATH = path.resolve("data", "storage-config.json");
+const STORAGE_CONFIG_PATH = path.resolve("data", "config", "storage-config.json");
 
 // 从文件恢复存储配置
 function loadStorageConfigFromFile() {

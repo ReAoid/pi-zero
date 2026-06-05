@@ -15,5 +15,11 @@ workplace/*
 !workplace/.gitkeep
 
 # Data 文件（保留 .gitkeep）
-data/*
+data/**
+
+!data/config/
+!data/sessions/
+
 !data/.gitkeep
+!data/config/.gitkeep
+!data/sessions/.gitkeep

@@ -68,7 +68,7 @@ export class ProviderRegistry {
   private currentConfig: ProviderConfig | null = null;
 
   constructor(storagePath?: string) {
-    this.storagePath = storagePath || path.join("data", "config.json");
+    this.storagePath = storagePath || path.join("data", "config", "provider-config.json");
   }
 
   /** 设置当前供应商配置（从前端接收或从环境变量读取） */
