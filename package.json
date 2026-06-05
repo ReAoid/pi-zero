@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"tsx watch server/index.ts\" \"tsc --watch --project tsconfig.client.json\"",
+    "dev": "concurrently \"node bash/kill-port.cjs 3000 && tsx server/index.ts\" \"tsc --watch --project tsconfig.client.json\"",
+    "predev": "node bash/kill-port.cjs 3000",
     "build": "tsc --project tsconfig.client.json",
     "typecheck": "tsc --noEmit",
     "typecheck:client": "tsc --noEmit --project tsconfig.client.json",
