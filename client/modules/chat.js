@@ -8,7 +8,6 @@ import { sessionManager } from "./session-manager.js";
 
 // ── DOM 引用 ──
 const statusDot = $("#status-dot");
-const modelName = $("#model-name");
 const messages = $("#messages");
 const input = $("#input");
 const sendBtn = $("#send-btn");
@@ -35,15 +34,14 @@ function refreshModelSelect() {
     }
   })();
 
-  const savedProvider = (() => {
+  // 用户手动选择的模型（最高优先级）
+  const userSelected = (() => {
     try {
-      const raw = localStorage.getItem("pi-zero-provider");
-      return raw ? JSON.parse(raw) : null;
+      return localStorage.getItem("pi-zero-selected-model") || "";
     } catch {
-      return null;
+      return "";
     }
   })();
-  const preferredModel = savedProvider?.model || "";
 
   modelSelectList.innerHTML = "";
 
@@ -53,9 +51,10 @@ function refreshModelSelect() {
     return;
   }
 
+  // 优先级：用户手动选择 > 已启用列表第一个
   let targetModel =
-    preferredModel && enabled.includes(preferredModel)
-      ? preferredModel
+    userSelected && enabled.includes(userSelected)
+      ? userSelected
       : enabled[0];
   selectedModel = targetModel;
 
@@ -75,13 +74,13 @@ function refreshModelSelect() {
   });
 
   modelSelectBtn.textContent = targetModel;
-  modelName.textContent = targetModel;
 }
 
 function selectModel(modelId) {
   selectedModel = modelId;
   modelSelectBtn.textContent = modelId;
-  modelName.textContent = modelId;
+  // 保存用户手动选择的模型，防止被轮询覆盖
+  localStorage.setItem("pi-zero-selected-model", modelId);
   Array.from(modelSelectList.children).forEach((li) => {
     li.classList.toggle("active", li.dataset.value === modelId);
   });
@@ -360,7 +359,9 @@ function handleWsEvent(event) {
 
     case "session_info": {
       if (event.model) {
-        modelName.textContent = `${event.model.provider}/${event.model.modelId || event.model.id}`;
+        const modelId = event.model.modelId || event.model.id;
+        selectedModel = modelId;
+        modelSelectBtn.textContent = modelId;
       }
       break;
     }

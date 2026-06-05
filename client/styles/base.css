@@ -193,12 +193,6 @@ header .badge {
 #status-dot.connected { background: var(--color-dot-online); }
 #status-dot.thinking  { background: var(--color-dot-thinking); animation: pulse 0.8s infinite; }
 
-#model-name {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
-  margin-left: auto;
-  font-weight: var(--font-weight-medium);
-}
 
 
 /* ═══════════════════════════════════════════════════════════
@@ -949,6 +943,11 @@ header .badge {
   align-items: center;
   justify-content: center;
   min-width: 32px;
+}
+
+/* 右侧折叠按钮靠右对齐 */
+.aside-toggle-btn {
+  margin-left: auto;
 }
 
 .nav-toggle-btn:hover,
