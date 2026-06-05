@@ -1,169 +1,210 @@
 /* ═════════════════════════════════════════════════════
    pi-zero · 会话管理 (Session Manager)
+   
+   与后端 SessionStore 协同工作，将会话持久化到服务器文件系统。
+   - 启动时从服务器加载会话列表
+   - 消息通过 WebSocket 发送给后端，后端自动持久化
+   - 支持切换、删除、重命名会话
    ═════════════════════════════════════════════════════ */
 
 import { safeSetText, formatTime } from "./utils.js";
 
-const STORAGE_KEY = "pi-zero-sessions";
 const ACTIVE_KEY = "pi-zero-active-session";
 
 export const sessionManager = {
-  // 只有发了消息的会话才存在此数组中（展示在左侧列表）
+  // 会话列表（来自服务器）
   sessions: [],
-  // 当前空白工作会话 ID（不在 sessions 中，不展示）
-  pendingId: null,
-  // 当前激活的会话 ID
+  // 当前激活的会话 ID（对应服务端的 sessionId）
   activeId: null,
+  // 当前是否正在从服务器加载
+  loading: false,
+  // 服务端 base URL
+  baseUrl: "",
 
   // ── 初始化 ──
   init() {
-    this.load();
-    const savedId = localStorage.getItem(ACTIVE_KEY);
-    const target =
-      savedId && this.sessions.find((s) => s.id === savedId)
-        ? savedId
-        : null;
-    if (target) {
-      this.switchTo(target);
-    } else if (this.sessions.length > 0) {
-      this.switchTo(this.sessions[0].id);
-    } else {
-      this._startPending();
-    }
-    this.render();
+    this.baseUrl = window.location.origin;
+    this._loadFromServer();
   },
 
-  // ── 创建一个空白工作会话 ──
-  _startPending() {
-    this.pendingId =
-      "pending_" +
-      Date.now() +
-      "_" +
-      Math.random().toString(36).slice(2, 6);
-    this.activeId = this.pendingId;
-    localStorage.setItem(ACTIVE_KEY, this.pendingId);
-    document.getElementById("messages").innerHTML = "";
-  },
-
-  // ── 加载/保存 ──
-  load() {
+  // ── 从服务器加载会话列表 ──
+  async _loadFromServer() {
+    this.loading = true;
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      const res = await fetch(`${this.baseUrl}/api/sessions`);
+      const data = await res.json();
+      if (data.ok) {
+        this.sessions = data.sessions || [];
+
+        // 恢复上次激活的会话
+        const savedId = localStorage.getItem(ACTIVE_KEY);
+        const target =
+          savedId && data.current === savedId
+            ? this.sessions.find((s) => s.id === savedId)
+            : null;
+
+        if (target) {
+          this.activeId = target.id;
+        } else if (this.sessions.length > 0) {
+          this.activeId = this.sessions[0].id;
+        } else {
+          this.activeId = data.current; // 服务端当前 sessionId（可能是新的空会话）
+        }
+
+        // 保存到 localStorage 做快速恢复
+        if (this.activeId) {
+          localStorage.setItem(ACTIVE_KEY, this.activeId);
+        }
+      }
+    } catch (err) {
+      console.warn("[SessionManager] 从服务器加载会话失败:", err);
+      // 降级：用 localStorage 的数据
+      this._loadFromLocalStorage();
+    } finally {
+      this.loading = false;
+      this.render();
+    }
+  },
+
+  // ── 降级：从 localStorage 加载 ──
+  _loadFromLocalStorage() {
+    try {
+      const raw = localStorage.getItem("pi-zero-sessions");
       this.sessions = raw ? JSON.parse(raw) : [];
     } catch {
       this.sessions = [];
     }
   },
 
-  save() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(this.sessions));
-  },
-
-  // ── 创建新会话 ──
-  create() {
-    this._startPending();
-    this.render();
-    document.getElementById("input").focus();
+  // ── 创建新会话（通过服务器） ──
+  async create() {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/sessions/new`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        this.activeId = data.sessionId;
+        localStorage.setItem(ACTIVE_KEY, data.sessionId);
+        // 清空消息区域
+        document.getElementById("messages").innerHTML = "";
+        // 刷新会话列表
+        await this._loadFromServer();
+      }
+    } catch (err) {
+      console.error("[SessionManager] 创建会话失败:", err);
+    }
+    document.getElementById("input")?.focus();
   },
 
   // ── 删除会话 ──
-  remove(id) {
-    this.sessions = this.sessions.filter((s) => s.id !== id);
-    this.save();
-    if (this.activeId === id) {
-      this._startPending();
+  async remove(id) {
+    const session = this.sessions.find((s) => s.id === id);
+    if (!session) return;
+
+    try {
+      const res = await fetch(`${this.baseUrl}/api/sessions/delete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filePath: session.filePath }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        this.sessions = this.sessions.filter((s) => s.id !== id);
+        if (this.activeId === id) {
+          this.activeId = null;
+          // 重新加载会话列表
+          await this._loadFromServer();
+          document.getElementById("messages").innerHTML =
+            '<div class="empty-state">选择或创建一个新会话</div>';
+        } else {
+          this.render();
+        }
+      }
+    } catch (err) {
+      console.error("[SessionManager] 删除会话失败:", err);
     }
-    this.render();
   },
 
   // ── 切换会话 ──
-  switchTo(id) {
+  async switchTo(id) {
     const session = this.sessions.find((s) => s.id === id);
     if (!session) return;
-    this.pendingId = null;
-    this.activeId = id;
-    localStorage.setItem(ACTIVE_KEY, id);
-    this._renderMessages(session);
-    this.render();
+
+    // 通知服务器切换到指定会话
+    try {
+      const res = await fetch(`${this.baseUrl}/api/sessions/switch`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filePath: session.filePath }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        this.activeId = id;
+        localStorage.setItem(ACTIVE_KEY, id);
+        // 清空消息区域（消息会通过 WebSocket 重新加载？这里需要后端支持）
+        document.getElementById("messages").innerHTML =
+          '<div class="msg system">已切换到会话: ' + safeSetText(session.title) + "</div>";
+        this.render();
+
+        // 触发一个自定义事件，让 chat.js 知道会话已切换
+        window.dispatchEvent(new CustomEvent("session-switched", {
+          detail: { sessionId: id, filePath: session.filePath },
+        }));
+      }
+    } catch (err) {
+      console.error("[SessionManager] 切换会话失败:", err);
+    }
   },
 
-  // ── 保存消息 ──
+  // ── 重命名会话 ──
+  async rename(id, newName) {
+    const session = this.sessions.find((s) => s.id === id);
+    if (!session || !newName) return;
+
+    try {
+      const res = await fetch(`${this.baseUrl}/api/sessions/rename`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filePath: session.filePath, name: newName }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        session.title = newName;
+        this.render();
+      }
+    } catch (err) {
+      console.error("[SessionManager] 重命名会话失败:", err);
+    }
+  },
+
+  // ── 保存消息（由 chat.js 调用） ──
   saveMessage(role, content) {
-    if (this.activeId === this.pendingId) {
-      const now = Date.now();
-      const session = {
-        id:
-          "sess_" +
-          now +
-          "_" +
-          Math.random().toString(36).slice(2, 6),
-        title:
-          role === "user"
-            ? content.length > 18
-              ? content.slice(0, 18) + "…"
-              : content
-            : "新会话",
-        createdAt: now,
-        messages: [],
-      };
-      this.sessions.unshift(session);
-      this.pendingId = null;
-      this.activeId = session.id;
-      localStorage.setItem(ACTIVE_KEY, session.id);
-      this.save();
+    // 消息由服务器端的 pi SessionManager 自动持久化，
+    // 这里只需要刷新会话列表元数据即可。
+    // 更新当前会话的元信息
+    const current = this.sessions.find((s) => s.id === this.activeId);
+    if (current) {
+      current.messageCount += 1;
+      if (current.messageCount === 1 && role === "user") {
+        current.title =
+          content.length > 24 ? content.slice(0, 24) + "…" : content;
+      }
+      current.modifiedAt = Date.now();
+      // 在列表中把当前会话移到最前面
+      this.sessions.sort((a, b) => b.modifiedAt - a.modifiedAt);
       this.render();
+    } else {
+      // 当前会话可能还未同步到本地列表，从服务器刷新
+      this._loadFromServer();
     }
-
-    const session = this.sessions.find(
-      (s) => s.id === this.activeId
-    );
-    if (!session) return;
-
-    session.messages.push({ role, content, time: Date.now() });
-
-    if (session.messages.length === 1 && role === "user") {
-      session.title =
-        content.length > 18
-          ? content.slice(0, 18) + "…"
-          : content;
-    }
-
-    this.save();
-    this.render();
   },
 
   // ── 获取当前会话 ──
   getCurrent() {
     return this.sessions.find((s) => s.id === this.activeId) || null;
-  },
-
-  // ── 渲染消息 ──
-  _renderMessages(session) {
-    const messagesEl = document.getElementById("messages");
-    messagesEl.innerHTML = "";
-    if (!session || session.messages.length === 0) return;
-    session.messages.forEach((msg) => {
-      const div = document.createElement("div");
-      div.className = `msg ${msg.role}`;
-      const sender = document.createElement("div");
-      sender.className = "sender";
-      sender.textContent = msg.role === "user" ? "你" : "AI";
-      const text = document.createElement("div");
-      text.className = "text";
-      text.textContent = msg.content;
-      div.appendChild(sender);
-      div.appendChild(text);
-      messagesEl.appendChild(div);
-    });
-    this._scrollToBottom();
-  },
-
-  // ── 滚动到底部 ──
-  _scrollToBottom() {
-    requestAnimationFrame(() => {
-      const el = document.getElementById("messages");
-      if (el) el.scrollTop = el.scrollHeight;
-    });
   },
 
   // ── 渲染左侧会话列表 ──
@@ -182,7 +223,7 @@ export const sessionManager = {
     listEl.innerHTML = this.sessions
       .map((s) => {
         const active = s.id === this.activeId;
-        const timeStr = formatTime(s.createdAt);
+        const timeStr = formatTime(s.createdAt || s.modifiedAt);
         const icon = active ? "💬" : "📄";
         return `
           <div class="session-item ${active ? "active" : ""}" data-id="${s.id}">
@@ -190,6 +231,7 @@ export const sessionManager = {
             <div class="session-item-info">
               <div class="session-item-title">${safeSetText(s.title)}</div>
               <div class="session-item-time">${timeStr}</div>
+              <div class="session-item-count">${s.messageCount || 0} 条消息</div>
             </div>
             <button class="session-item-delete" title="删除">✕</button>
           </div>
@@ -221,17 +263,18 @@ export const sessionManager = {
 };
 
 // ── 绑定"新会话"按钮 ──
-document
-  .getElementById("sessionBtnNew")
-  .addEventListener("click", () => {
-    sessionManager.create("新会话");
+const newBtn = document.getElementById("sessionBtnNew");
+if (newBtn) {
+  newBtn.addEventListener("click", () => {
+    sessionManager.create();
   });
+}
 
 // ── Ctrl+N / Cmd+N 快捷键 ──
 document.addEventListener("keydown", (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key === "n") {
     e.preventDefault();
-    sessionManager.create("新会话");
+    sessionManager.create();
   }
 });
 

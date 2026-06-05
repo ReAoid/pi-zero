@@ -15,11 +15,44 @@ import { injectPosixPath } from "./posix-env.js";
 injectPosixPath();
 // ═══════════════════════════════════════════════════════
 
+// ── 存储路径配置（可从客户端覆盖，必须在 agent 初始化前声明） ──
+let WORKPLACE_DIR = path.resolve("workplace");
+let SESSIONS_DIR = path.resolve("data", "sessions");
+let KNOWLEDGE_DIR = path.resolve("data", "knowledge");
+let LOGS_DIR = path.resolve("data", "logs");
+
+// ── 存储配置持久化文件 ──
+const STORAGE_CONFIG_PATH = path.resolve("data", "config", "storage-config.json");
+
+// 从文件恢复存储配置
+function loadStorageConfigFromFile() {
+  try {
+    if (!fs.existsSync(STORAGE_CONFIG_PATH)) return false;
+    const raw = fs.readFileSync(STORAGE_CONFIG_PATH, "utf-8");
+    const cfg = JSON.parse(raw);
+    if (cfg.workplace) WORKPLACE_DIR = path.resolve(cfg.workplace);
+    if (cfg.sessions) SESSIONS_DIR = path.resolve(cfg.sessions);
+    if (cfg.knowledge) KNOWLEDGE_DIR = path.resolve(cfg.knowledge);
+    if (cfg.logs) LOGS_DIR = path.resolve(cfg.logs);
+    console.log(`[Storage] 从文件恢复存储配置`);
+    return true;
+  } catch (err) {
+    console.warn("[Storage] 读取存储配置失败:", (err as Error).message);
+    return false;
+  }
+}
+
 // ── 初始化 pi Agent ──
 const agent = new ChatAgent();
 
 // 尝试从文件恢复持久化的供应商配置
 const configRestored = providerRegistry.loadFromFile();
+
+// 尝试从文件恢复存储配置（包括 sessions 目录）
+const storageRestored = loadStorageConfigFromFile();
+
+// 将会话持久化目录设置到 agent（必须在 init() 之前）
+agent.setSessionsDir(SESSIONS_DIR);
 
 agent.init().catch((err: Error) => {
   if (configRestored) {
@@ -138,37 +171,137 @@ app.post("/api/provider/switch", async (c) => {
 });
 
 // ═══════════════════════════════════════════════════════
+//  Session API: 会话持久化管理
+// ═══════════════════════════════════════════════════════
+
+// ── 列出所有历史会话 ──
+app.get("/api/sessions", (c) => {
+  const store = agent.sessionStore;
+  if (!store) {
+    return c.json({ ok: false, error: "SessionStore 尚未初始化" }, 503);
+  }
+  const sessions = store.listSessions();
+  return c.json({
+    ok: true,
+    sessions,
+    current: store.currentSessionId,
+  });
+});
+
+// ── 切换会话（通过会话文件路径） ──
+app.post("/api/sessions/switch", async (c) => {
+  const body = await c.req.json();
+  if (!body || !body.filePath) {
+    return c.json({ ok: false, error: "缺少 filePath 参数" }, 400);
+  }
+
+  const store = agent.sessionStore;
+  if (!store) {
+    return c.json({ ok: false, error: "SessionStore 尚未初始化" }, 503);
+  }
+
+  try {
+    await agent.switchToSession(body.filePath);
+    return c.json({
+      ok: true,
+      sessionId: agent.sessionId,
+      model: agent.modelInfo,
+    });
+  } catch (err) {
+    return c.json({ ok: false, error: err instanceof Error ? err.message : String(err) }, 500);
+  }
+});
+
+// ── 创建新会话 ──
+app.post("/api/sessions/new", async (c) => {
+  const store = agent.sessionStore;
+  if (!store) {
+    return c.json({ ok: false, error: "SessionStore 尚未初始化" }, 503);
+  }
+
+  try {
+    // 用现有的供应商配置重新 init（会创建新 session）
+    await agent.init();
+    return c.json({
+      ok: true,
+      sessionId: agent.sessionId,
+    });
+  } catch (err) {
+    return c.json({ ok: false, error: err instanceof Error ? err.message : String(err) }, 500);
+  }
+});
+
+// ── 删除会话 ──
+app.post("/api/sessions/delete", async (c) => {
+  const body = await c.req.json();
+  if (!body || !body.filePath) {
+    return c.json({ ok: false, error: "缺少 filePath 参数" }, 400);
+  }
+
+  const store = agent.sessionStore;
+  if (!store) {
+    return c.json({ ok: false, error: "SessionStore 尚未初始化" }, 503);
+  }
+
+  // 如果删除的是当前会话，先创建新会话
+  if (store.currentManager?.getSessionFile() === body.filePath) {
+    store.createNewManager();
+    await agent.init();
+  }
+
+  const deleted = store.deleteSession(body.filePath);
+  if (!deleted) {
+    return c.json({ ok: false, error: "会话文件不存在或删除失败" }, 404);
+  }
+
+  return c.json({ ok: true });
+});
+
+// ── 重命名会话 ──
+app.post("/api/sessions/rename", async (c) => {
+  const body = await c.req.json();
+  if (!body || !body.filePath || !body.name) {
+    return c.json({ ok: false, error: "缺少 filePath 或 name" }, 400);
+  }
+
+  const store = agent.sessionStore;
+  if (!store) {
+    return c.json({ ok: false, error: "SessionStore 尚未初始化" }, 503);
+  }
+
+  const renamed = store.renameSession(body.filePath, body.name);
+  if (!renamed) {
+    return c.json({ ok: false, error: "会话文件不存在或重命名失败" }, 404);
+  }
+
+  return c.json({ ok: true });
+});
+
+// ── 导出会话内容 ──
+app.post("/api/sessions/export", async (c) => {
+  const body = await c.req.json();
+  if (!body || !body.filePath) {
+    return c.json({ ok: false, error: "缺少 filePath 参数" }, 400);
+  }
+
+  const store = agent.sessionStore;
+  if (!store) {
+    return c.json({ ok: false, error: "SessionStore 尚未初始化" }, 503);
+  }
+
+  const content = store.exportSession(body.filePath);
+  if (content === null) {
+    return c.json({ ok: false, error: "会话文件不存在" }, 404);
+  }
+
+  return c.json({ ok: true, content });
+});
+
+// ═══════════════════════════════════════════════════════
 //  Workplace API: 右侧边栏文件系统
 // ═══════════════════════════════════════════════════════
 
-// ── 存储路径配置（可从客户端覆盖） ──
-let WORKPLACE_DIR = path.resolve("workplace");
-let SESSIONS_DIR = path.resolve("data", "sessions");
-let KNOWLEDGE_DIR = path.resolve("data", "knowledge");
-let LOGS_DIR = path.resolve("data", "logs");
-
-// ── 存储配置持久化文件 ──
-const STORAGE_CONFIG_PATH = path.resolve("data", "config", "storage-config.json");
-
-// 从文件恢复存储配置
-function loadStorageConfigFromFile() {
-  try {
-    if (!fs.existsSync(STORAGE_CONFIG_PATH)) return false;
-    const raw = fs.readFileSync(STORAGE_CONFIG_PATH, "utf-8");
-    const cfg = JSON.parse(raw);
-    if (cfg.workplace) WORKPLACE_DIR = path.resolve(cfg.workplace);
-    if (cfg.sessions) SESSIONS_DIR = path.resolve(cfg.sessions);
-    if (cfg.knowledge) KNOWLEDGE_DIR = path.resolve(cfg.knowledge);
-    if (cfg.logs) LOGS_DIR = path.resolve(cfg.logs);
-    console.log(`[Storage] 从文件恢复存储配置`);
-    return true;
-  } catch (err) {
-    console.warn("[Storage] 读取存储配置失败:", (err as Error).message);
-    return false;
-  }
-}
-
-// 持久化存储配置到文件
+// ── saveStorageConfigToFile 函数（用于 API 路由） ──
 function saveStorageConfigToFile(config: {
   sessions?: string;
   knowledge?: string;
@@ -188,9 +321,6 @@ function saveStorageConfigToFile(config: {
     console.warn("[Storage] 持久化存储配置失败:", (err as Error).message);
   }
 }
-
-// 从文件恢复配置
-loadStorageConfigFromFile();
 
 // 确保各存储目录存在
 [WORKPLACE_DIR, SESSIONS_DIR, KNOWLEDGE_DIR, LOGS_DIR].forEach((dir) => {

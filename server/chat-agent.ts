@@ -1,3 +1,4 @@
+import path from "node:path";
 import {
   AuthStorage,
   createAgentSession,
@@ -5,20 +6,39 @@ import {
   SessionManager,
 } from "@earendil-works/pi-coding-agent";
 import { providerRegistry, type ProviderConfig } from "./provider-registry.js";
+import { SessionStore } from "./session-store.js";
 
 /**
  * 基于 pi SDK 的聊天 Agent 封装。
  * 支持通过 setProvider() 动态切换 OpenAI / Anthropic / DeepSeek / 自定义。
+ * 使用 SessionStore 实现会话持久化到本地文件。
  */
 export class ChatAgent {
   private session: Awaited<ReturnType<typeof createAgentSession>>["session"] | null = null;
   private listeners = new Set<(event: unknown) => void>();
   private unsub: (() => void) | null = null;
   private _modelInfo: { provider: string; modelId: string } | null = null;
+  private _sessionStore: SessionStore | null = null;
+  private _sessionsDir: string = "";
 
   /** 获取当前模型信息 */
   get modelInfo() {
     return this._modelInfo;
+  }
+
+  /** 获取 SessionStore（用于外部 API 路由访问会话列表等） */
+  get sessionStore(): SessionStore | null {
+    return this._sessionStore;
+  }
+
+  /** 获取当前 sessionId */
+  get sessionId(): string | undefined {
+    return this.session?.sessionId;
+  }
+
+  /** 设置会话持久化目录（在 init() 前调用） */
+  setSessionsDir(dir: string): void {
+    this._sessionsDir = dir;
   }
 
   /** 从 pi SDK 的 ModelRegistry 中查找匹配的 model 对象 */
@@ -62,7 +82,16 @@ export class ChatAgent {
     const authStorage = AuthStorage.create();
     const modelRegistry = ModelRegistry.create(authStorage);
 
-    // 5. 查找模型
+    // 5. 初始化或恢复 SessionStore（持久化）
+    if (!this._sessionStore) {
+      const sessionsDir = this._sessionsDir || path.join("data", "sessions");
+      this._sessionStore = new SessionStore(sessionsDir);
+    }
+
+    // 6. 获取持久化的 SessionManager（恢复最近会话或创建新会话）
+    const sessionManager = this._sessionStore.createManager();
+
+    // 7. 查找模型
     const piModel = this.findPiModel(modelRegistry, modelInfo.provider, modelInfo.modelId);
 
     if (!piModel) {
@@ -86,7 +115,7 @@ export class ChatAgent {
         model: available[0],
         authStorage,
         modelRegistry,
-        sessionManager: SessionManager.inMemory(),
+        sessionManager,       // ← 持久化的 SessionManager
       });
 
       this.session = result.session;
@@ -98,13 +127,13 @@ export class ChatAgent {
         model: piModel,
         authStorage,
         modelRegistry,
-        sessionManager: SessionManager.inMemory(),
+        sessionManager,       // ← 持久化的 SessionManager
       });
 
       this.session = result.session;
     }
 
-    // 6. 重新绑定事件订阅
+    // 8. 重新绑定事件订阅
     this.unsub = this.session.subscribe((event) => {
       for (const listener of this.listeners) {
         try {
@@ -115,7 +144,65 @@ export class ChatAgent {
       }
     });
 
-    // 7. 广播 session 信息
+    // 9. 广播 session 信息
+    this.broadcastSessionInfo();
+  }
+
+  /**
+   * 切换到一个已有的会话（基于 SessionStore）。
+   * 销毁当前 session 后用新会话的 SessionManager 重建。
+   */
+  async switchToSession(sessionFilePath: string, providerConfig?: ProviderConfig): Promise<void> {
+    if (!this._sessionStore) {
+      throw new Error("SessionStore 未初始化，请先调用 init()");
+    }
+
+    // 1. 拆卸当前 session（但保留 SessionStore）
+    this.unsub?.();
+    this.session?.dispose();
+    this.session = null;
+    this._modelInfo = null;
+
+    // 2. 切换到指定的会话文件
+    const sessionManager = this._sessionStore.switchTo(sessionFilePath);
+
+    // 3. 重新创建 session（复用 auth/model 配置）
+    if (providerConfig) {
+      providerRegistry.setConfig(providerConfig);
+    }
+
+    const cfg = providerRegistry.getConfig();
+    const modelInfo = providerRegistry.getModelInfo();
+    const authStorage = AuthStorage.create();
+    const modelRegistry = ModelRegistry.create(authStorage);
+    const piModel = this.findPiModel(modelRegistry, modelInfo.provider, modelInfo.modelId);
+
+    const modelToUse = piModel || modelRegistry.getAvailable()[0];
+    if (!modelToUse) {
+      throw new Error("没有可用模型");
+    }
+
+    const result = await createAgentSession({
+      model: modelToUse,
+      authStorage,
+      modelRegistry,
+      sessionManager,
+    });
+    this.session = result.session;
+    this._modelInfo = {
+      provider: modelInfo.provider,
+      modelId: modelInfo.modelId,
+    };
+
+    // 4. 重新绑定事件
+    this.unsub = this.session.subscribe((event) => {
+      for (const listener of this.listeners) {
+        try {
+          listener(event);
+        } catch { /* ignore */ }
+      }
+    });
+
     this.broadcastSessionInfo();
   }
 
@@ -131,11 +218,6 @@ export class ChatAgent {
   async prompt(text: string): Promise<void> {
     if (!this.session) throw new Error("Session 未初始化，请先调用 init()");
     await this.session.prompt(text);
-  }
-
-  /** 获取当前 sessionId */
-  get sessionId(): string | undefined {
-    return this.session?.sessionId;
   }
 
   /** 向所有监听器广播 session 信息 */
@@ -159,5 +241,6 @@ export class ChatAgent {
     this.session?.dispose();
     this.session = null;
     this._modelInfo = null;
+    // 注意：不 dispose SessionStore，它保存全局状态
   }
 }
