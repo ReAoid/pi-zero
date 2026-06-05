@@ -1087,38 +1087,23 @@
       // ── 重命名 ──
       async renameItem(path, isDir) {
         const oldName = path.split("/").pop();
-        const newName = prompt(`重命名 ${isDir ? "文件夹" : "文件"}:`, oldName);
+        const newName = prompt(`重命名${isDir ? "文件夹" : "文件"}:`, oldName);
         if (!newName || newName === oldName) return;
 
-        const parentPath = path.includes("/") ? path.substring(0, path.lastIndexOf("/")) : "";
-        const newPath = parentPath ? parentPath + "/" + newName : newName;
-
-        if (isDir) {
-          alert("⚠️ 暂不支持重命名文件夹，请手动操作");
-          return;
-        }
-
         try {
-          const readRes = await fetch(`/api/workplace/read?path=${encodeURIComponent(path)}`);
-          const readData = await readRes.json();
-          if (!readData.ok) { alert("❌ 读取失败: " + readData.error); return; }
-
-          const writeRes = await fetch("/api/workplace/write", {
+          const res = await fetch("/api/workplace/rename", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ path: newPath, content: readData.content })
+            body: JSON.stringify({ path, newName })
           });
-          const writeData = await writeRes.json();
-          if (!writeData.ok) { alert("❌ " + writeData.error); return; }
-
-          await fetch("/api/workplace/delete", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ path })
-          });
-          this.refresh();
+          const data = await res.json();
+          if (data.ok) {
+            this.refresh();
+          } else {
+            alert("❌ " + data.error);
+          }
         } catch (err) {
-          alert("❌ " + err.message);
+          alert("❌ 重命名失败: " + err.message);
         }
       },
 

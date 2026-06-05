@@ -337,6 +337,42 @@ app.post("/api/workplace/mkdir", async (c) => {
   }
 });
 
+// ── 重命名文件/目录 ──
+app.post("/api/workplace/rename", async (c) => {
+  const { path: oldPath, newName } = await c.req.json();
+  if (!oldPath || !newName) {
+    return c.json({ ok: false, error: "缺少 path 或 newName" }, 400);
+  }
+
+  const oldTarget = safeResolve(oldPath);
+  if (!oldTarget) {
+    return c.json({ ok: false, error: "无效的原路径" }, 400);
+  }
+  if (!fs.existsSync(oldTarget)) {
+    return c.json({ ok: false, error: "原路径不存在" }, 404);
+  }
+
+  // 新路径 = 原父目录 + 新名称
+  const parentDir = path.dirname(oldTarget);
+  const newTarget = path.join(parentDir, newName);
+
+  // 安全校验：新路径必须在 WORKPLACE_DIR 内
+  if (!newTarget.startsWith(WORKPLACE_DIR)) {
+    return c.json({ ok: false, error: "新路径无效" }, 400);
+  }
+  if (fs.existsSync(newTarget)) {
+    return c.json({ ok: false, error: "目标路径已存在" }, 409);
+  }
+
+  try {
+    fs.renameSync(oldTarget, newTarget);
+    console.log(`[Workplace] 重命名: ${oldPath} → ${parentDir}/${newName}`);
+    return c.json({ ok: true, oldPath, newPath: path.posix.join(path.dirname(oldPath), newName) });
+  } catch (err) {
+    return c.json({ ok: false, error: (err as Error).message }, 500);
+  }
+});
+
 // ── Workplace 文件监听 ──
 let workplaceWatcher: fs.FSWatcher | null = null;
 
