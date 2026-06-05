@@ -1,6 +1,6 @@
 /* ═════════════════════════════════════════════════════
    pi-zero · 会话管理 (Session Manager)
-   
+
    与后端 SessionStore 协同工作，将会话持久化到服务器文件系统。
    - 启动时从服务器加载会话列表
    - 消息通过 WebSocket 发送给后端，后端自动持久化
@@ -8,31 +8,45 @@
    ═════════════════════════════════════════════════════ */
 
 import { safeSetText, formatTime } from "./utils.js";
+import type { SessionMeta } from "../../types.js";
 
 const ACTIVE_KEY = "pi-zero-active-session";
 
-export const sessionManager = {
-  // 会话列表（来自服务器）
+interface SessionManagerState {
+  sessions: SessionMeta[];
+  activeId: string | null;
+  loading: boolean;
+  baseUrl: string;
+  init(): void;
+  _loadFromServer(): Promise<void>;
+  _loadFromLocalStorage(): void;
+  create(): Promise<void>;
+  remove(id: string): Promise<void>;
+  switchTo(id: string): Promise<void>;
+  rename(id: string, newName: string): Promise<void>;
+  saveMessage(role: string, content: string): void;
+  getCurrent(): SessionMeta | null;
+  render(): void;
+}
+
+export const sessionManager: SessionManagerState = {
   sessions: [],
-  // 当前激活的会话 ID（对应服务端的 sessionId）
   activeId: null,
-  // 当前是否正在从服务器加载
   loading: false,
-  // 服务端 base URL
   baseUrl: "",
 
   // ── 初始化 ──
-  init() {
+  init(): void {
     this.baseUrl = window.location.origin;
     this._loadFromServer();
   },
 
   // ── 从服务器加载会话列表 ──
-  async _loadFromServer() {
+  async _loadFromServer(): Promise<void> {
     this.loading = true;
     try {
       const res = await fetch(`${this.baseUrl}/api/sessions`);
-      const data = await res.json();
+      const data = await res.json() as { ok: boolean; sessions?: SessionMeta[]; current?: string };
       if (data.ok) {
         this.sessions = data.sessions || [];
 
@@ -48,7 +62,7 @@ export const sessionManager = {
         } else if (this.sessions.length > 0) {
           this.activeId = this.sessions[0].id;
         } else {
-          this.activeId = data.current; // 服务端当前 sessionId（可能是新的空会话）
+          this.activeId = data.current || null; // 服务端当前 sessionId（可能是新的空会话）
         }
 
         // 保存到 localStorage 做快速恢复
@@ -67,7 +81,7 @@ export const sessionManager = {
   },
 
   // ── 降级：从 localStorage 加载 ──
-  _loadFromLocalStorage() {
+  _loadFromLocalStorage(): void {
     try {
       const raw = localStorage.getItem("pi-zero-sessions");
       this.sessions = raw ? JSON.parse(raw) : [];
@@ -77,19 +91,19 @@ export const sessionManager = {
   },
 
   // ── 创建新会话（通过服务器） ──
-  async create() {
+  async create(): Promise<void> {
     try {
       const res = await fetch(`${this.baseUrl}/api/sessions/new`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
       });
-      const data = await res.json();
-      if (data.ok) {
+      const data = await res.json() as { ok: boolean; sessionId?: string };
+      if (data.ok && data.sessionId) {
         this.activeId = data.sessionId;
         localStorage.setItem(ACTIVE_KEY, data.sessionId);
         // 清空消息区域
-        document.getElementById("messages").innerHTML = "";
+        document.getElementById("messages")!.innerHTML = "";
         // 刷新会话列表
         await this._loadFromServer();
       }
@@ -100,7 +114,7 @@ export const sessionManager = {
   },
 
   // ── 删除会话 ──
-  async remove(id) {
+  async remove(id: string): Promise<void> {
     const session = this.sessions.find((s) => s.id === id);
     if (!session) return;
 
@@ -110,14 +124,14 @@ export const sessionManager = {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ filePath: session.filePath }),
       });
-      const data = await res.json();
+      const data = await res.json() as { ok: boolean };
       if (data.ok) {
         this.sessions = this.sessions.filter((s) => s.id !== id);
         if (this.activeId === id) {
           this.activeId = null;
           // 重新加载会话列表
           await this._loadFromServer();
-          document.getElementById("messages").innerHTML =
+          document.getElementById("messages")!.innerHTML =
             '<div class="empty-state">选择或创建一个新会话</div>';
         } else {
           this.render();
@@ -129,7 +143,7 @@ export const sessionManager = {
   },
 
   // ── 切换会话 ──
-  async switchTo(id) {
+  async switchTo(id: string): Promise<void> {
     const session = this.sessions.find((s) => s.id === id);
     if (!session) return;
 
@@ -140,12 +154,12 @@ export const sessionManager = {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ filePath: session.filePath }),
       });
-      const data = await res.json();
+      const data = await res.json() as { ok: boolean };
       if (data.ok) {
         this.activeId = id;
         localStorage.setItem(ACTIVE_KEY, id);
         // 清空消息区域（消息会通过 WebSocket 重新加载？这里需要后端支持）
-        document.getElementById("messages").innerHTML =
+        document.getElementById("messages")!.innerHTML =
           '<div class="msg system">已切换到会话: ' + safeSetText(session.title) + "</div>";
         this.render();
 
@@ -160,7 +174,7 @@ export const sessionManager = {
   },
 
   // ── 重命名会话 ──
-  async rename(id, newName) {
+  async rename(id: string, newName: string): Promise<void> {
     const session = this.sessions.find((s) => s.id === id);
     if (!session || !newName) return;
 
@@ -170,7 +184,7 @@ export const sessionManager = {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ filePath: session.filePath, name: newName }),
       });
-      const data = await res.json();
+      const data = await res.json() as { ok: boolean };
       if (data.ok) {
         session.title = newName;
         this.render();
@@ -181,7 +195,7 @@ export const sessionManager = {
   },
 
   // ── 保存消息（由 chat.js 调用） ──
-  saveMessage(role, content) {
+  saveMessage(role: string, content: string): void {
     // 消息由服务器端的 pi SessionManager 自动持久化，
     // 这里只需要刷新会话列表元数据即可。
     // 更新当前会话的元信息
@@ -203,12 +217,12 @@ export const sessionManager = {
   },
 
   // ── 获取当前会话 ──
-  getCurrent() {
+  getCurrent(): SessionMeta | null {
     return this.sessions.find((s) => s.id === this.activeId) || null;
   },
 
   // ── 渲染左侧会话列表 ──
-  render() {
+  render(): void {
     const listEl = document.getElementById("sessionList");
     const countEl = document.getElementById("sessionCount");
     if (!listEl) return;
@@ -243,9 +257,9 @@ export const sessionManager = {
       countEl.textContent = `共 ${this.sessions.length} 个会话`;
 
     listEl.querySelectorAll(".session-item").forEach((el) => {
-      el.addEventListener("click", (e) => {
-        if (e.target.closest(".session-item-delete")) return;
-        const sid = el.dataset.id;
+      el.addEventListener("click", (e: Event) => {
+        if ((e.target as HTMLElement).closest(".session-item-delete")) return;
+        const sid = (el as HTMLElement).dataset.id;
         if (sid && sid !== this.activeId) {
           this.switchTo(sid);
         }
@@ -253,10 +267,10 @@ export const sessionManager = {
     });
 
     listEl.querySelectorAll(".session-item-delete").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
+      btn.addEventListener("click", (e: Event) => {
         e.stopPropagation();
-        const parent = btn.closest(".session-item");
-        if (parent) this.remove(parent.dataset.id);
+        const parent = (btn as HTMLElement).closest(".session-item") as HTMLElement | null;
+        if (parent) this.remove(parent.dataset.id || "");
       });
     });
   },
@@ -271,7 +285,7 @@ if (newBtn) {
 }
 
 // ── Ctrl+N / Cmd+N 快捷键 ──
-document.addEventListener("keydown", (e) => {
+document.addEventListener("keydown", (e: KeyboardEvent) => {
   if ((e.ctrlKey || e.metaKey) && e.key === "n") {
     e.preventDefault();
     sessionManager.create();

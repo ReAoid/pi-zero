@@ -3,20 +3,21 @@
    ═════════════════════════════════════════════════════ */
 
 import { getEnabledModels } from "./model-manager.js";
+import type { ProviderId } from "../../types.js";
 
 // ── DOM 引用 ──
-const providerSelect = document.getElementById("settings-provider");
-const apiKeyInput = document.getElementById("settings-api-key");
-const apiEndpointInput = document.getElementById("settings-api-endpoint");
-const modelInput = document.getElementById("settings-model");
-const customModelField = document.getElementById("custom-model-field");
-const providerTestBtn = document.getElementById("settings-provider-test");
-const keyToggleBtn = document.getElementById("settings-key-toggle");
-const endpointHint = document.getElementById("endpoint-hint");
-const modelHint = document.getElementById("model-hint");
+const providerSelect = document.getElementById("settings-provider") as HTMLSelectElement;
+const apiKeyInput = document.getElementById("settings-api-key") as HTMLInputElement;
+const apiEndpointInput = document.getElementById("settings-api-endpoint") as HTMLInputElement;
+const modelInput = document.getElementById("settings-model") as HTMLInputElement;
+const customModelField = document.getElementById("custom-model-field") as HTMLElement;
+const providerTestBtn = document.getElementById("settings-provider-test") as HTMLElement;
+const keyToggleBtn = document.getElementById("settings-key-toggle") as HTMLElement;
+const endpointHint = document.getElementById("endpoint-hint") as HTMLElement;
+const modelHint = document.getElementById("model-hint") as HTMLElement;
 
 // ── 四种供应商的默认配置 ──
-const PROVIDER_PRESETS = {
+const PROVIDER_PRESETS: Record<ProviderId, { endpoint: string; model: string; hint: string; modelHint: string }> = {
   openai: {
     endpoint: "https://api.openai.com/v1",
     model: "gpt-4o",
@@ -44,18 +45,18 @@ const PROVIDER_PRESETS = {
   },
 };
 
-// 暴露给 model-manager.js 使用
+// 暴露给 model-manager.ts 使用
 window.PROVIDER_PRESETS = PROVIDER_PRESETS;
 
 // ── 切换供应商时更新端点和模型的默认提示 ──
-function updateProviderHints() {
+function updateProviderHints(): void {
   const preset =
-    PROVIDER_PRESETS[providerSelect.value] || PROVIDER_PRESETS.custom;
+    PROVIDER_PRESETS[providerSelect.value as ProviderId] || PROVIDER_PRESETS.custom;
   endpointHint.textContent = preset.hint;
   modelHint.textContent = preset.modelHint;
 
   const saved = localStorage.getItem("pi-zero-provider");
-  const cfg = saved ? JSON.parse(saved) : {};
+  const cfg: Record<string, string> = saved ? JSON.parse(saved) : {};
   if (!cfg.endpoint || cfg.provider !== providerSelect.value) {
     apiEndpointInput.placeholder = preset.endpoint;
   }
@@ -69,20 +70,20 @@ function updateProviderHints() {
 }
 
 // ── 加载已保存的供应商配置 ──
-function loadProviderConfig() {
+function loadProviderConfig(): void {
   const saved = localStorage.getItem("pi-zero-provider");
   if (saved) {
     try {
-      const cfg = JSON.parse(saved);
+      const cfg = JSON.parse(saved) as { provider?: string; apiKey?: string; endpoint?: string; model?: string };
       providerSelect.value = cfg.provider || "openai";
       apiKeyInput.value = cfg.apiKey || "";
       apiEndpointInput.value = cfg.endpoint || "";
       apiEndpointInput.placeholder =
-        PROVIDER_PRESETS[cfg.provider]?.endpoint || "https://";
+        (PROVIDER_PRESETS[cfg.provider as ProviderId]?.endpoint) || "https://";
       modelInput.value = cfg.model || "";
       modelInput.placeholder =
-        PROVIDER_PRESETS[cfg.provider]?.model || "";
-    } catch (e) {}
+        (PROVIDER_PRESETS[cfg.provider as ProviderId]?.model) || "";
+    } catch (e) { /* ignore */ }
   }
   updateProviderHints();
 }
@@ -90,8 +91,8 @@ function loadProviderConfig() {
 loadProviderConfig();
 
 // ── 自动保存供应商配置 ──
-let _providerSaveTimer = null;
-function scheduleProviderSave() {
+let _providerSaveTimer: ReturnType<typeof setTimeout> | null = null;
+function scheduleProviderSave(): void {
   if (_providerSaveTimer) clearTimeout(_providerSaveTimer);
   _providerSaveTimer = setTimeout(() => {
     doSaveProviderConfig();
@@ -99,8 +100,8 @@ function scheduleProviderSave() {
   }, 400);
 }
 
-export function doSaveProviderConfig() {
-  const provider = providerSelect.value;
+export function doSaveProviderConfig(): void {
+  const provider = providerSelect.value as ProviderId;
   const enabledModels = getEnabledModels();
   const defaultModel =
     provider === "custom"
@@ -139,7 +140,7 @@ modelInput.addEventListener("input", scheduleProviderSave);
 
 // ── 测试连接 ──
 providerTestBtn.addEventListener("click", async () => {
-  const provider = providerSelect.value;
+  const provider = providerSelect.value as ProviderId;
   const enabledModels = getEnabledModels();
   const testModel =
     provider === "custom"
@@ -156,7 +157,7 @@ providerTestBtn.addEventListener("click", async () => {
   };
 
   providerTestBtn.textContent = "⏳ 测试中...";
-  providerTestBtn.disabled = true;
+  (providerTestBtn as HTMLButtonElement).disabled = true;
 
   try {
     const res = await fetch("/api/provider/test", {
@@ -164,17 +165,17 @@ providerTestBtn.addEventListener("click", async () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(config),
     });
-    const result = await res.json();
+    const result = await res.json() as { ok: boolean; model?: string; error?: string };
     if (result.ok) {
       alert(`✅ 连接成功！模型: ${result.model ?? "未知"}`);
     } else {
       alert(`❌ 连接失败: ${result.error}`);
     }
-  } catch (err) {
-    alert(`❌ 请求失败: ${err.message}`);
+  } catch (err: unknown) {
+    alert(`❌ 请求失败: ${err instanceof Error ? err.message : String(err)}`);
   } finally {
     providerTestBtn.textContent = "测试连接";
-    providerTestBtn.disabled = false;
+    (providerTestBtn as HTMLButtonElement).disabled = false;
   }
 });
 

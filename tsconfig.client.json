@@ -1,0 +1,17 @@
+/* ═════════════════════════════════════════════════════
+   pi-zero · TypeScript 客户端构建配置
+
+   源码: client/modules/*.ts + types.ts（根目录）
+   输出: client/dist/（编译后的 JS）
+   ═════════════════════════════════════════════════════ */
+
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "client/dist",
+    "declaration": false,
+    "sourceMap": false
+  },
+  "include": ["client/modules/**/*.ts", "types.ts"],
+  "exclude": []
+}

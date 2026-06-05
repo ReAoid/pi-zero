@@ -3,26 +3,26 @@
    ═════════════════════════════════════════════════════ */
 
 // ── 设置弹框 ──
-const settingToggle = document.getElementById("setting-toggle");
-const settingsModal = document.getElementById("settings-modal");
-const modalClose = document.getElementById("modal-close");
+const settingToggle = document.getElementById("setting-toggle") as HTMLElement;
+const settingsModal = document.getElementById("settings-modal") as HTMLElement;
+const modalClose = document.getElementById("modal-close") as HTMLElement;
 
-function openSettings() {
+function openSettings(): void {
   settingsModal.classList.add("open");
 }
 
-function closeSettings() {
+function closeSettings(): void {
   settingsModal.classList.remove("open");
 }
 
 settingToggle.addEventListener("click", openSettings);
 modalClose.addEventListener("click", closeSettings);
 
-settingsModal.addEventListener("click", (e) => {
+settingsModal.addEventListener("click", (e: MouseEvent) => {
   if (e.target === settingsModal) closeSettings();
 });
 
-document.addEventListener("keydown", (e) => {
+document.addEventListener("keydown", (e: KeyboardEvent) => {
   if (
     e.key === "Escape" &&
     settingsModal.classList.contains("open")
@@ -32,8 +32,8 @@ document.addEventListener("keydown", (e) => {
 });
 
 // ── 设置面板 Tab 切换 ──
-const navItems = document.querySelectorAll(".settings-nav__item");
-const panes = document.querySelectorAll(".settings-pane");
+const navItems = document.querySelectorAll<HTMLElement>(".settings-nav__item");
+const panes = document.querySelectorAll<HTMLElement>(".settings-pane");
 
 navItems.forEach((item) => {
   item.addEventListener("click", () => {
@@ -41,19 +41,18 @@ navItems.forEach((item) => {
     item.classList.add("active");
     const tab = item.dataset.tab;
     panes.forEach((p) => p.classList.remove("active"));
-    document.getElementById("pane-" + tab).classList.add("active");
+    const targetPane = document.getElementById("pane-" + tab);
+    if (targetPane) targetPane.classList.add("active");
   });
 });
 
 // ── 界面标签：主题包 & 亮暗切换 ──
-const settingsPackSelect = document.getElementById(
-  "settings-pack-select"
-);
-const settingsThemeBtn = document.getElementById("settings-theme-toggle");
-const settingsThemeIcon = document.getElementById("settings-theme-icon");
-const settingsThemeLabel = document.getElementById("settings-theme-label");
+const settingsPackSelect = document.getElementById("settings-pack-select") as HTMLSelectElement;
+const settingsThemeBtn = document.getElementById("settings-theme-toggle") as HTMLElement;
+const settingsThemeIcon = document.getElementById("settings-theme-icon") as HTMLElement;
+const settingsThemeLabel = document.getElementById("settings-theme-label") as HTMLElement;
 
-function syncSettingsThemeUI() {
+function syncSettingsThemeUI(): void {
   const html = document.documentElement;
   const isDark = html.getAttribute("data-theme") === "dark";
   settingsThemeIcon.textContent = isDark ? "☀" : "○";

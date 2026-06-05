@@ -620,6 +620,7 @@ function startWorkplaceWatcher() {
 
 // ── 静态文件服务 ──
 const CLIENT_DIR = path.resolve("client");
+const CLIENT_DIST_DIR = path.resolve("client", "dist", "client"); // TypeScript 编译输出
 const MIME_TYPES: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
@@ -643,20 +644,27 @@ app.get("*", (c) => {
   }
 
   const filePath = reqPath === "/" ? "/index.html" : reqPath;
-  const fullPath = path.join(CLIENT_DIR, filePath);
 
-  try {
-    if (!fs.existsSync(fullPath) || fs.statSync(fullPath).isDirectory()) {
-      return c.text("Not Found", 404);
+  // ── 多目录查找 ──
+  //   1) client/dist/client/  (TypeScript 编译后的 JS)
+  //   2) client/              (HTML、CSS 等源文件)
+  const searchDirs = [CLIENT_DIST_DIR, CLIENT_DIR];
+  for (const baseDir of searchDirs) {
+    const fullPath = path.join(baseDir, filePath);
+    try {
+      if (fs.existsSync(fullPath) && !fs.statSync(fullPath).isDirectory()) {
+        const content = fs.readFileSync(fullPath);
+        const ext = path.extname(fullPath).toLowerCase();
+        return c.body(content, 200, {
+          "Content-Type": MIME_TYPES[ext] || "application/octet-stream",
+        });
+      }
+    } catch {
+      // 继续下一个目录
     }
-    const content = fs.readFileSync(fullPath);
-    const ext = path.extname(fullPath).toLowerCase();
-    return c.body(content, 200, {
-      "Content-Type": MIME_TYPES[ext] || "application/octet-stream",
-    });
-  } catch {
-    return c.text("Not Found", 404);
   }
+
+  return c.text("Not Found", 404);
 });
 
 // ────────────────────────────────────────────────────

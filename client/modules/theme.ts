@@ -5,15 +5,15 @@
    确保在 DOM 解析后、任何模块脚本之前执行。
    ═════════════════════════════════════════════════════ */
 
-(function initTheme() {
+(function initTheme(): void {
   const html = document.documentElement;
 
   // ── 主题包（pack）加载 ──
-  window.__loadPack = function (slug) {
+  window.__loadPack = function (slug: string): void {
     document.querySelectorAll('link[id^="theme-stylesheet-"]').forEach((link) => {
-      link.disabled = true;
+      (link as HTMLLinkElement).disabled = true;
     });
-    const target = document.getElementById("theme-stylesheet-" + slug);
+    const target = document.getElementById("theme-stylesheet-" + slug) as HTMLLinkElement | null;
     if (target) target.disabled = false;
     localStorage.setItem("pi-zero-pack", slug);
   };
@@ -29,7 +29,7 @@
 /**
  * 全局亮暗切换函数（供模块脚本调用）
  */
-function toggleTheme() {
+function toggleTheme(): void {
   const html = document.documentElement;
   const current = html.getAttribute("data-theme");
   const next = current === "dark" ? "light" : "dark";

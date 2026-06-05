@@ -7,7 +7,16 @@
     "strict": true,
     "skipLibCheck": true,
     "outDir": "dist",
-    "rootDir": "."
+    "rootDir": ".",
+    "declaration": true,
+    "sourceMap": true,
+    "paths": {
+      "@shared/*": ["./shared/*"]
+    }
   },
-  "include": ["server/**/*.ts", "client/**/*.ts"]
+  "include": [
+    "server/**/*.ts",
+    "client/**/*.ts",
+    "shared/**/*.ts"
+  ]
 }

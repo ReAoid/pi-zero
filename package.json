@@ -4,7 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch server/index.ts",
+    "dev": "concurrently \"tsx watch server/index.ts\" \"tsc --watch --project tsconfig.client.json\"",
+    "build": "tsc --project tsconfig.client.json",
+    "typecheck": "tsc --noEmit",
+    "typecheck:client": "tsc --noEmit --project tsconfig.client.json",
     "setup:posix": "node bash/setup-posix.js",
     "setup": "npm run setup:posix",
     "postinstall": "node bash/setup-posix.js"
@@ -21,6 +24,7 @@
     "@types/express": "^5.0.0",
     "@types/node": "^22.0.0",
     "@types/ws": "^8.5.0",
+    "concurrently": "^10.0.3",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0"
   }

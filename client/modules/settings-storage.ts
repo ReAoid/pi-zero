@@ -5,18 +5,14 @@
 import { workplace } from "./workplace.js";
 
 // ── DOM 引用 ──
-const sessionPathInput = document.getElementById(
-  "settings-session-path"
-);
-const workplacePathInput = document.getElementById(
-  "settings-workplace-path"
-);
+const sessionPathInput = document.getElementById("settings-session-path") as HTMLInputElement;
+const workplacePathInput = document.getElementById("settings-workplace-path") as HTMLInputElement;
 
 // ── 从服务端加载存储配置 ──
-async function loadStorageConfig() {
+async function loadStorageConfig(): Promise<void> {
   try {
     const res = await fetch("/api/storage/config");
-    const data = await res.json();
+    const data = await res.json() as { ok: boolean; config?: { sessions?: string; workplace?: string } };
     if (data.ok && data.config) {
       sessionPathInput.value = data.config.sessions || "";
       workplacePathInput.value = data.config.workplace || "";
@@ -26,7 +22,7 @@ async function loadStorageConfig() {
     const saved = localStorage.getItem("pi-zero-storage");
     if (saved) {
       try {
-        const cfg = JSON.parse(saved);
+        const cfg = JSON.parse(saved) as { sessions?: string; workplace?: string };
         sessionPathInput.value = cfg.sessions || "";
         workplacePathInput.value = cfg.workplace || "";
       } catch (e2) { /* ignore */ }
@@ -37,8 +33,8 @@ async function loadStorageConfig() {
 loadStorageConfig();
 
 // ── 自动保存存储配置 ──
-let _storageSaveTimer = null;
-function scheduleStorageSave() {
+let _storageSaveTimer: ReturnType<typeof setTimeout> | null = null;
+function scheduleStorageSave(): void {
   if (_storageSaveTimer) clearTimeout(_storageSaveTimer);
   _storageSaveTimer = setTimeout(() => {
     doSaveStorageConfig();
@@ -46,7 +42,7 @@ function scheduleStorageSave() {
   }, 400);
 }
 
-async function doSaveStorageConfig() {
+async function doSaveStorageConfig(): Promise<void> {
   const config = {
     sessions: sessionPathInput.value || "./data/sessions",
     workplace: workplacePathInput.value || "./workplace",

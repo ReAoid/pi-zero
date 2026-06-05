@@ -3,18 +3,40 @@
    ═════════════════════════════════════════════════════ */
 
 import { safeSetText } from "./utils.js";
+import type { WorkFileItem } from "../../types.js";
 
 // ── DOM 引用 ──
-const fileListEl = document.getElementById("wp-file-list");
-const pathBarEl = document.getElementById("wp-path-bar");
-const dropZoneEl = document.getElementById("wp-drop-zone");
+const fileListEl = document.getElementById("wp-file-list")!;
+const pathBarEl = document.getElementById("wp-path-bar")!;
+const dropZoneEl = document.getElementById("wp-drop-zone")!;
+
+// ── Workplace 对象类型 ──
+interface WorkplaceState {
+  currentPath: string;
+  refresh(path?: string): Promise<void>;
+  renderItems(items: WorkFileItem[]): void;
+  handleOpen(el: HTMLElement): void;
+  navigateTo(path: string): void;
+  openFile(path: string): Promise<void>;
+  showFilePreview(path: string, content: string): void;
+  openEditor(path: string, content: string): void;
+  downloadFile(path: string, base64Content: string): void;
+  renderPathBar(pathStr: string): void;
+  showContextMenu(x: number, y: number, path: string, isDir: boolean): void;
+  deleteItem(path: string, isDir: boolean): Promise<void>;
+  renameItem(path: string, isDir: boolean): Promise<void>;
+  createFile(): Promise<void>;
+  createDir(): Promise<void>;
+  uploadFile(file: File): Promise<void>;
+  initDragDrop(): void;
+}
 
 // ── Workplace 对象 ──
-export const workplace = {
+export const workplace: WorkplaceState = {
   currentPath: "",
 
   // ── 刷新文件列表 ──
-  async refresh(path) {
+  async refresh(path?: string): Promise<void> {
     if (path !== undefined) this.currentPath = path || "";
     fileListEl.innerHTML = '<div class="workplace-loading">加载中...</div>';
     try {
@@ -28,13 +50,14 @@ export const workplace = {
       } else {
         fileListEl.innerHTML = `<div class="workplace-error">❌ 加载失败: ${safeSetText(data.error)}</div>`;
       }
-    } catch (err) {
-      fileListEl.innerHTML = `<div class="workplace-error">❌ 请求失败: ${err.message}</div>`;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      fileListEl.innerHTML = `<div class="workplace-error">❌ 请求失败: ${msg}</div>`;
     }
   },
 
   // ── 渲染文件项 ──
-  renderItems(items) {
+  renderItems(items: WorkFileItem[]): void {
     if (items.length === 0) {
       fileListEl.innerHTML = '<div class="workplace-empty">📂 空目录</div>';
       return;
@@ -60,12 +83,12 @@ export const workplace = {
 
     // ── 单击/双击逻辑 ──
     fileListEl.querySelectorAll(".wp-file-item").forEach((el) => {
-      let clickTimer = null;
-      el.addEventListener("click", (e) => {
+      let clickTimer: ReturnType<typeof setTimeout> | null = null;
+      el.addEventListener("click", (e: Event) => {
         if (clickTimer) {
           clearTimeout(clickTimer);
           clickTimer = null;
-          this.handleOpen(el);
+          this.handleOpen(el as HTMLElement);
         } else {
           clickTimer = setTimeout(() => {
             clickTimer = null;
@@ -77,21 +100,22 @@ export const workplace = {
         }
       });
 
-      el.addEventListener("contextmenu", (e) => {
+      (el as HTMLElement).addEventListener("contextmenu", (e: MouseEvent) => {
         e.preventDefault();
+        const target = el as HTMLElement;
         this.showContextMenu(
           e.clientX,
           e.clientY,
-          el.dataset.path,
-          el.dataset.isdir === "true"
+          target.dataset.path || "",
+          target.dataset.isdir === "true"
         );
       });
     });
   },
 
   // ── 打开文件/目录 ──
-  handleOpen(el) {
-    const path = el.dataset.path;
+  handleOpen(el: HTMLElement): void {
+    const path = el.dataset.path || "";
     const isDir = el.dataset.isdir === "true";
     if (isDir) {
       this.navigateTo(path);
@@ -101,13 +125,13 @@ export const workplace = {
   },
 
   // ── 进入目录 ──
-  navigateTo(path) {
+  navigateTo(path: string): void {
     this.currentPath = path;
     this.refresh(path);
   },
 
   // ── 打开文件预览 ──
-  async openFile(path) {
+  async openFile(path: string): Promise<void> {
     try {
       const res = await fetch(
         `/api/workplace/read?path=${encodeURIComponent(path)}`
@@ -128,13 +152,13 @@ export const workplace = {
       } else {
         alert("❌ " + data.error);
       }
-    } catch (err) {
-      alert("❌ 读取失败: " + err.message);
+    } catch (err: unknown) {
+      alert("❌ 读取失败: " + (err instanceof Error ? err.message : String(err)));
     }
   },
 
   // ── 文件预览弹框 ──
-  showFilePreview(path, content) {
+  showFilePreview(path: string, content: string): void {
     const old = document.querySelector(".workplace-preview-overlay");
     if (old) old.remove();
 
@@ -161,8 +185,8 @@ export const workplace = {
     overlay.appendChild(body);
     document.body.appendChild(overlay);
 
-    header.querySelector(".wp-preview-close").addEventListener("click", () => overlay.remove());
-    header.querySelector(".wp-preview-copy").addEventListener("click", async () => {
+    header.querySelector(".wp-preview-close")!.addEventListener("click", () => overlay.remove());
+    header.querySelector(".wp-preview-copy")!.addEventListener("click", async () => {
       try {
         await navigator.clipboard.writeText(content);
         alert("✅ 已复制到剪贴板");
@@ -170,7 +194,7 @@ export const workplace = {
         alert("❌ 复制失败");
       }
     });
-    header.querySelector(".wp-preview-download").addEventListener("click", () => {
+    header.querySelector(".wp-preview-download")!.addEventListener("click", () => {
       const a = document.createElement("a");
       const blob = new Blob([content], { type: "text/plain" });
       a.href = URL.createObjectURL(blob);
@@ -178,16 +202,16 @@ export const workplace = {
       a.click();
       URL.revokeObjectURL(a.href);
     });
-    header.querySelector(".wp-preview-edit").addEventListener("click", () => {
+    header.querySelector(".wp-preview-edit")!.addEventListener("click", () => {
       this.openEditor(path, content);
       overlay.remove();
     });
 
-    overlay.addEventListener("click", (e) => {
+    overlay.addEventListener("click", (e: MouseEvent) => {
       if (e.target === overlay) overlay.remove();
     });
 
-    const escHandler = (e) => {
+    const escHandler = (e: KeyboardEvent): void => {
       if (e.key === "Escape") {
         overlay.remove();
         document.removeEventListener("keydown", escHandler);
@@ -197,7 +221,7 @@ export const workplace = {
   },
 
   // ── 内联编辑器 ──
-  openEditor(path, content) {
+  openEditor(path: string, content: string): void {
     const overlay = document.createElement("div");
     overlay.className = "workplace-preview-overlay";
 
@@ -223,8 +247,8 @@ export const workplace = {
     overlay.appendChild(body);
     document.body.appendChild(overlay);
 
-    const closeBtn = header.querySelector(".wp-preview-close");
-    const saveBtn = header.querySelector(".wp-preview-save");
+    const closeBtn = header.querySelector(".wp-preview-close") as HTMLElement;
+    const saveBtn = header.querySelector(".wp-preview-save") as HTMLElement;
 
     closeBtn.addEventListener("click", () => {
       if (textarea.value !== content) {
@@ -249,19 +273,19 @@ export const workplace = {
         } else {
           alert("❌ " + data.error);
         }
-      } catch (err) {
-        alert("❌ 保存失败: " + err.message);
+      } catch (err: unknown) {
+        alert("❌ 保存失败: " + (err instanceof Error ? err.message : String(err)));
       }
     });
 
-    textarea.addEventListener("keydown", (e) => {
+    textarea.addEventListener("keydown", (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "s") {
         e.preventDefault();
         saveBtn.click();
       }
     });
 
-    const escHandler = (e) => {
+    const escHandler = (e: KeyboardEvent): void => {
       if (e.key === "Escape") {
         closeBtn.click();
         document.removeEventListener("keydown", escHandler);
@@ -273,7 +297,7 @@ export const workplace = {
   },
 
   // ── 下载二进制文件 ──
-  downloadFile(path, base64Content) {
+  downloadFile(path: string, base64Content: string): void {
     const a = document.createElement("a");
     a.href = "data:application/octet-stream;base64," + base64Content;
     a.download = path.split("/").pop() || "file";
@@ -282,7 +306,7 @@ export const workplace = {
   },
 
   // ── 渲染面包屑路径 ──
-  renderPathBar(pathStr) {
+  renderPathBar(pathStr: string): void {
     const parts =
       pathStr === "/" || !pathStr ? [] : pathStr.split("/");
     let html =
@@ -298,13 +322,13 @@ export const workplace = {
 
     pathBarEl.querySelectorAll(".wp-path-item").forEach((el) => {
       el.addEventListener("click", () => {
-        this.navigateTo(el.dataset.path);
+        this.navigateTo((el as HTMLElement).dataset.path || "");
       });
     });
   },
 
   // ── 右键菜单 ──
-  showContextMenu(x, y, path, isDir) {
+  showContextMenu(x: number, y: number, path: string, isDir: boolean): void {
     const old = document.querySelector(".workplace-context-menu");
     if (old) old.remove();
 
@@ -313,7 +337,7 @@ export const workplace = {
     menu.style.left = x + "px";
     menu.style.top = y + "px";
 
-    const actions = [
+    const actions: { label: string; action: () => void; danger?: boolean }[] = [
       {
         label: isDir ? "📂 打开" : "📄 打开",
         action: () => {
@@ -348,8 +372,8 @@ export const workplace = {
       });
     });
 
-    const close = (e) => {
-      if (!menu.contains(e.target)) {
+    const close = (e: MouseEvent): void => {
+      if (!menu.contains(e.target as Node)) {
         menu.remove();
         document.removeEventListener("click", close);
       }
@@ -358,7 +382,7 @@ export const workplace = {
   },
 
   // ── 删除 ──
-  async deleteItem(path, isDir) {
+  async deleteItem(path: string, isDir: boolean): Promise<void> {
     const type = isDir ? "文件夹" : "文件";
     if (!confirm(`确定删除${type} "${path}" 吗？`)) return;
     try {
@@ -373,13 +397,13 @@ export const workplace = {
       } else {
         alert("❌ " + data.error);
       }
-    } catch (err) {
-      alert("❌ " + err.message);
+    } catch (err: unknown) {
+      alert("❌ " + (err instanceof Error ? err.message : String(err)));
     }
   },
 
   // ── 重命名 ──
-  async renameItem(path, isDir) {
+  async renameItem(path: string, isDir: boolean): Promise<void> {
     const oldName = path.split("/").pop();
     const newName = prompt(
       `重命名${isDir ? "文件夹" : "文件"}:`,
@@ -399,13 +423,13 @@ export const workplace = {
       } else {
         alert("❌ " + data.error);
       }
-    } catch (err) {
-      alert("❌ 重命名失败: " + err.message);
+    } catch (err: unknown) {
+      alert("❌ 重命名失败: " + (err instanceof Error ? err.message : String(err)));
     }
   },
 
   // ── 新建文件 ──
-  async createFile() {
+  async createFile(): Promise<void> {
     const name = prompt("输入文件名:");
     if (!name) return;
     const fullPath = this.currentPath
@@ -424,13 +448,13 @@ export const workplace = {
       } else {
         alert("❌ " + data.error);
       }
-    } catch (err) {
-      alert("❌ " + err.message);
+    } catch (err: unknown) {
+      alert("❌ " + (err instanceof Error ? err.message : String(err)));
     }
   },
 
   // ── 新建文件夹 ──
-  async createDir() {
+  async createDir(): Promise<void> {
     const name = prompt("输入文件夹名称:");
     if (!name) return;
     const fullPath = this.currentPath
@@ -448,66 +472,64 @@ export const workplace = {
       } else {
         alert("❌ " + data.error);
       }
-    } catch (err) {
-      alert("❌ " + err.message);
+    } catch (err: unknown) {
+      alert("❌ " + (err instanceof Error ? err.message : String(err)));
     }
   },
 
   // ── 上传文件 ──
-  uploadFile(file) {
+  async uploadFile(file: File): Promise<void> {
     const formData = new FormData();
     const fullPath = this.currentPath
       ? this.currentPath + "/" + file.name
       : file.name;
     formData.append("file", file);
     formData.append("path", fullPath);
-    return fetch("/api/workplace/upload", {
+    const res = await fetch("/api/workplace/upload", {
       method: "POST",
       body: formData,
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.ok) {
-          this.refresh();
-        } else {
-          throw new Error(data.error);
-        }
-      });
+    });
+    const data = await res.json();
+    if (data.ok) {
+      this.refresh();
+    } else {
+      throw new Error(data.error);
+    }
   },
 
   // ── 初始化拖放 ──
-  initDragDrop() {
-    const aside = document.getElementById("right-aside");
+  initDragDrop(): void {
+    const aside = document.getElementById("right-aside")!;
 
-    aside.addEventListener("dragenter", (e) => {
+    aside.addEventListener("dragenter", (e: DragEvent) => {
       e.preventDefault();
       e.stopPropagation();
       dropZoneEl.classList.add("active");
     });
 
-    aside.addEventListener("dragover", (e) => {
+    aside.addEventListener("dragover", (e: DragEvent) => {
       e.preventDefault();
       e.stopPropagation();
       dropZoneEl.classList.add("active");
     });
 
-    aside.addEventListener("dragleave", (e) => {
+    aside.addEventListener("dragleave", (e: DragEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      if (e.relatedTarget && aside.contains(e.relatedTarget)) return;
+      if (e.relatedTarget && aside.contains(e.relatedTarget as Node)) return;
       dropZoneEl.classList.remove("active");
     });
 
-    aside.addEventListener("drop", async (e) => {
+    aside.addEventListener("drop", async (e: DragEvent) => {
       e.preventDefault();
       e.stopPropagation();
       dropZoneEl.classList.remove("active");
 
-      const files = e.dataTransfer.files;
-      if (files.length === 0) return;
+      const files = e.dataTransfer?.files;
+      if (!files || files.length === 0) return;
 
       dropZoneEl.classList.add("uploading");
-      dropZoneEl.querySelector(".workplace-drop-zone-content").innerHTML =
+      dropZoneEl.querySelector(".workplace-drop-zone-content")!.innerHTML =
         `<span class="workplace-drop-icon">⏳</span><span>上传中 ${files.length} 个文件...</span>`;
 
       let success = 0;
@@ -523,43 +545,43 @@ export const workplace = {
       }
 
       dropZoneEl.classList.remove("uploading");
-      dropZoneEl.querySelector(".workplace-drop-zone-content").innerHTML =
+      dropZoneEl.querySelector(".workplace-drop-zone-content")!.innerHTML =
         `<span class="workplace-drop-icon">📂</span><span>${success} 个文件上传成功${failed ? ", " + failed + " 个失败" : ""}</span>`;
 
       setTimeout(() => {
         dropZoneEl.querySelector(
           ".workplace-drop-zone-content"
-        ).innerHTML = `<span class="workplace-drop-icon">📂</span><span>拖放文件到此处上传</span>`;
+        )!.innerHTML = `<span class="workplace-drop-icon">📂</span><span>拖放文件到此处上传</span>`;
       }, 2000);
     });
   },
 };
 
 // ── 绑定 Workplace 按钮 ──
-document.getElementById("wp-refresh").addEventListener("click", () =>
+document.getElementById("wp-refresh")!.addEventListener("click", () =>
   workplace.refresh()
 );
-document.getElementById("wp-open-folder").addEventListener("click", () => {
+document.getElementById("wp-open-folder")!.addEventListener("click", () => {
   fetch("/api/workplace/open", { method: "POST" })
     .then((res) => res.json())
     .then((data) => {
       if (!data.ok) alert("❌ " + data.error);
     })
-    .catch((err) =>
-      alert("❌ 打开文件管理器失败: " + err.message)
+    .catch((err: unknown) =>
+      alert("❌ 打开文件管理器失败: " + (err instanceof Error ? err.message : String(err)))
     );
 });
 
 // ── 监听 workplace 文件变更（来自 WebSocket 自定义事件） ──
 window.addEventListener("ws:workplace_changed", () => {
-  if (window._wpDebounceTimer) clearTimeout(window._wpDebounceTimer);
-  window._wpDebounceTimer = setTimeout(() => {
+  if ((window as unknown as Record<string, unknown>)._wpDebounceTimer) clearTimeout((window as unknown as Record<string, ReturnType<typeof setTimeout>>)._wpDebounceTimer);
+  (window as unknown as Record<string, ReturnType<typeof setTimeout>>)._wpDebounceTimer = setTimeout(() => {
     workplace.refresh();
   }, 500);
 });
 
 // ── 初始化 Workplace ──
-(async function initWorkplace() {
+(async function initWorkplace(): Promise<void> {
   // 优先从服务端加载存储配置
   try {
     const res = await fetch("/api/storage/config");
@@ -570,7 +592,7 @@ window.addEventListener("ws:workplace_changed", () => {
     const stored = localStorage.getItem("pi-zero-storage");
     if (stored) {
       try {
-        const cfg = JSON.parse(stored);
+        const cfg = JSON.parse(stored) as { workplace?: string };
         if (cfg.workplace) {
           fetch("/api/workplace/config", {
             method: "POST",
@@ -578,7 +600,7 @@ window.addEventListener("ws:workplace_changed", () => {
             body: JSON.stringify({ path: cfg.workplace }),
           }).catch(() => {});
         }
-      } catch (e) {}
+      } catch (e) { /* ignore */ }
     }
   }
   workplace.refresh();

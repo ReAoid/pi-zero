@@ -5,32 +5,32 @@
 import { escapeHtml } from "./utils.js";
 
 // ── DOM 引用 ──
-const providerSelect = document.getElementById("settings-provider");
-const customModelField = document.getElementById("custom-model-field");
-const remoteModelList = document.getElementById("remote-model-list");
-const enabledModelList = document.getElementById("enabled-model-list");
-const fetchModelsBtn = document.getElementById("settings-fetch-models");
-const addAllBtn = document.getElementById("models-add-all");
-const removeAllBtn = document.getElementById("models-remove-all");
+const providerSelect = document.getElementById("settings-provider") as HTMLSelectElement;
+const customModelField = document.getElementById("custom-model-field") as HTMLElement;
+const remoteModelList = document.getElementById("remote-model-list") as HTMLElement;
+const enabledModelList = document.getElementById("enabled-model-list") as HTMLElement;
+const fetchModelsBtn = document.getElementById("settings-fetch-models") as HTMLElement;
+const addAllBtn = document.getElementById("models-add-all") as HTMLElement;
+const removeAllBtn = document.getElementById("models-remove-all") as HTMLElement;
 
-let cachedRemoteModels = [];
+let cachedRemoteModels: string[] = [];
 
 // ── 已启用模型持久化 ──
-export function getEnabledModels() {
+export function getEnabledModels(): string[] {
   try {
     const raw = localStorage.getItem("pi-zero-enabled-models");
-    return raw ? JSON.parse(raw) : [];
+    return raw ? (JSON.parse(raw) as string[]) : [];
   } catch {
     return [];
   }
 }
 
-export function saveEnabledModels(models) {
+export function saveEnabledModels(models: string[]): void {
   localStorage.setItem("pi-zero-enabled-models", JSON.stringify(models));
 }
 
 // ── 渲染远程模型列表 ──
-function renderRemoteModels(remoteModels, enabledModels) {
+function renderRemoteModels(remoteModels: string[], enabledModels: string[]): void {
   const enabled = new Set(enabledModels);
   const notEnabled = remoteModels.filter((m) => !enabled.has(m));
 
@@ -58,7 +58,7 @@ function renderRemoteModels(remoteModels, enabledModels) {
 }
 
 // ── 渲染已启用模型列表 ──
-function renderEnabledModels(enabledModels) {
+function renderEnabledModels(enabledModels: string[]): void {
   if (enabledModels.length === 0) {
     enabledModelList.innerHTML = `
       <div class="model-list-empty" style="color: var(--muted, #888); padding: 1rem; text-align: center; font-size: 0.85rem;">
@@ -83,7 +83,7 @@ function renderEnabledModels(enabledModels) {
 }
 
 // ── 刷新全部 UI ──
-export function refreshModelUI() {
+export function refreshModelUI(): void {
   const enabled = getEnabledModels();
   renderRemoteModels(cachedRemoteModels, enabled);
   renderEnabledModels(enabled);
@@ -92,7 +92,7 @@ export function refreshModelUI() {
 }
 
 // ── 全局函数（供 onclick 使用） ──
-function notifyModelsChanged() {
+function notifyModelsChanged(): void {
   refreshModelUI();
   // 模型列表变更时也触发供应商配置自动保存
   if (window.__scheduleProviderSave) {
@@ -100,7 +100,7 @@ function notifyModelsChanged() {
   }
 }
 
-window.addSingleModel = function (modelId) {
+window.addSingleModel = function (modelId: string): void {
   const enabled = getEnabledModels();
   if (!enabled.includes(modelId)) {
     enabled.push(modelId);
@@ -109,7 +109,7 @@ window.addSingleModel = function (modelId) {
   notifyModelsChanged();
 };
 
-window.removeSingleModel = function (modelId) {
+window.removeSingleModel = function (modelId: string): void {
   const enabled = getEnabledModels().filter((m) => m !== modelId);
   saveEnabledModels(enabled);
   notifyModelsChanged();
@@ -117,17 +117,15 @@ window.removeSingleModel = function (modelId) {
 
 // ── 获取可用模型 ──
 fetchModelsBtn.addEventListener("click", async () => {
-  const apiKeyInput = document.getElementById("settings-api-key");
-  const apiEndpointInput = document.getElementById(
-    "settings-api-endpoint"
-  );
+  const apiKeyInput = document.getElementById("settings-api-key") as HTMLInputElement;
+  const apiEndpointInput = document.getElementById("settings-api-endpoint") as HTMLInputElement;
 
-  const config = {
+  const config: Record<string, string> = {
     provider: providerSelect.value,
     apiKey: apiKeyInput.value,
     endpoint:
       apiEndpointInput.value ||
-      PROVIDER_PRESETS[providerSelect.value]?.endpoint ||
+      window.PROVIDER_PRESETS[providerSelect.value]?.endpoint ||
       "",
     model: "",
   };
@@ -138,7 +136,7 @@ fetchModelsBtn.addEventListener("click", async () => {
   }
 
   fetchModelsBtn.textContent = "⏳ 获取中...";
-  fetchModelsBtn.disabled = true;
+  (fetchModelsBtn as HTMLButtonElement).disabled = true;
 
   try {
     const res = await fetch("/api/provider/models", {
@@ -146,20 +144,20 @@ fetchModelsBtn.addEventListener("click", async () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(config),
     });
-    const result = await res.json();
+    const result = await res.json() as { ok: boolean; models?: string[]; error?: string };
 
     if (result.ok) {
-      cachedRemoteModels = result.models;
+      cachedRemoteModels = result.models || [];
       refreshModelUI();
-      console.log(`📦 获取到 ${result.models.length} 个模型`);
+      console.log(`📦 获取到 ${result.models?.length || 0} 个模型`);
     } else {
       alert(`❌ 获取失败: ${result.error}`);
     }
-  } catch (err) {
-    alert(`❌ 请求失败: ${err.message}`);
+  } catch (err: unknown) {
+    alert(`❌ 请求失败: ${err instanceof Error ? err.message : String(err)}`);
   } finally {
     fetchModelsBtn.textContent = "📦 获取可用模型";
-    fetchModelsBtn.disabled = false;
+    (fetchModelsBtn as HTMLButtonElement).disabled = false;
   }
 });
 
@@ -197,7 +195,7 @@ providerSelect.addEventListener("change", () => {
 });
 
 // ── 初始加载 ──
-(function initModelManagement() {
+(function initModelManagement(): void {
   // PROVIDER_PRESETS 在 settings-provider.js 中定义，
   // 这里只做初始状态渲染
   customModelField.style.display =
