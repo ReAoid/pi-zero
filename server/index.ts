@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import { spawn, execFileSync } from "node:child_process";
-import { createServer as createHttp } from "node:http";
+import http from "node:http";
 import { WebSocketServer, WebSocket } from "ws";
 import path from "node:path";
 import fs from "node:fs";
@@ -381,14 +381,11 @@ app.get("*", (c) => {
 //  HTTP + WebSocket 服务器
 // ────────────────────────────────────────────────────
 
-const nodeServer = createHttp();
-
-serve({
+const nodeServer = serve({
   fetch: app.fetch,
-  createServer: () => nodeServer,
   port: parseInt(process.env.PORT || "3000", 10),
   hostname: "0.0.0.0",
-});
+}) as unknown as http.Server;
 
 const wss = new WebSocketServer({ server: nodeServer });
 
