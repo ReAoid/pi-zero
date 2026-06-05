@@ -92,19 +92,27 @@ export function refreshModelUI() {
 }
 
 // ── 全局函数（供 onclick 使用） ──
+function notifyModelsChanged() {
+  refreshModelUI();
+  // 模型列表变更时也触发供应商配置自动保存
+  if (window.__scheduleProviderSave) {
+    window.__scheduleProviderSave();
+  }
+}
+
 window.addSingleModel = function (modelId) {
   const enabled = getEnabledModels();
   if (!enabled.includes(modelId)) {
     enabled.push(modelId);
     saveEnabledModels(enabled);
   }
-  refreshModelUI();
+  notifyModelsChanged();
 };
 
 window.removeSingleModel = function (modelId) {
   const enabled = getEnabledModels().filter((m) => m !== modelId);
   saveEnabledModels(enabled);
-  refreshModelUI();
+  notifyModelsChanged();
 };
 
 // ── 获取可用模型 ──
@@ -167,7 +175,7 @@ addAllBtn.addEventListener("click", () => {
     return;
   }
   saveEnabledModels([...enabled, ...toAdd]);
-  refreshModelUI();
+  notifyModelsChanged();
 });
 
 // ── 全部删除 ──
@@ -178,7 +186,7 @@ removeAllBtn.addEventListener("click", () => {
   }
   if (confirm("确定要删除所有已启用的模型吗？")) {
     saveEnabledModels([]);
-    refreshModelUI();
+    notifyModelsChanged();
   }
 });
 

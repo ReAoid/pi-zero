@@ -10,7 +10,6 @@ const apiKeyInput = document.getElementById("settings-api-key");
 const apiEndpointInput = document.getElementById("settings-api-endpoint");
 const modelInput = document.getElementById("settings-model");
 const customModelField = document.getElementById("custom-model-field");
-const providerSaveBtn = document.getElementById("settings-provider-save");
 const providerTestBtn = document.getElementById("settings-provider-test");
 const keyToggleBtn = document.getElementById("settings-key-toggle");
 const endpointHint = document.getElementById("endpoint-hint");
@@ -90,10 +89,17 @@ function loadProviderConfig() {
 
 loadProviderConfig();
 
-// ── 事件绑定 ──
-providerSelect.addEventListener("change", updateProviderHints);
+// ── 自动保存供应商配置 ──
+let _providerSaveTimer = null;
+function scheduleProviderSave() {
+  if (_providerSaveTimer) clearTimeout(_providerSaveTimer);
+  _providerSaveTimer = setTimeout(() => {
+    doSaveProviderConfig();
+    _providerSaveTimer = null;
+  }, 400);
+}
 
-providerSaveBtn.addEventListener("click", () => {
+export function doSaveProviderConfig() {
   const provider = providerSelect.value;
   const enabledModels = getEnabledModels();
   const defaultModel =
@@ -116,24 +122,20 @@ providerSaveBtn.addEventListener("click", () => {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(config),
-  })
-    .then((res) => res.json())
-    .then((result) => {
-      if (result.ok) {
-        alert("✅ 配置已保存并切换");
-      } else {
-        alert(
-          "⚠️ 配置已保存，但切换失败: " +
-            (result.error || "未知错误")
-        );
-      }
-    })
-    .catch((err) => {
-      alert(
-        "✅ 配置已保存（后端切换失败: " + err.message + "）"
-      );
-    });
-});
+  }).catch(() => {
+    // 静默处理后端通信失败，至少已保存到 localStorage
+  });
+}
+
+// 导出以便 model-manager.js 在模型变更时触发
+window.__scheduleProviderSave = scheduleProviderSave;
+
+// ── 事件绑定 ──
+providerSelect.addEventListener("change", updateProviderHints);
+providerSelect.addEventListener("change", scheduleProviderSave);
+apiKeyInput.addEventListener("input", scheduleProviderSave);
+apiEndpointInput.addEventListener("input", scheduleProviderSave);
+modelInput.addEventListener("input", scheduleProviderSave);
 
 // ── 测试连接 ──
 providerTestBtn.addEventListener("click", async () => {

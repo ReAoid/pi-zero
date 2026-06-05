@@ -18,8 +18,6 @@ injectPosixPath();
 // ── 存储路径配置（可从客户端覆盖，必须在 agent 初始化前声明） ──
 let WORKPLACE_DIR = path.resolve("workplace");
 let SESSIONS_DIR = path.resolve("data", "sessions");
-let KNOWLEDGE_DIR = path.resolve("data", "knowledge");
-let LOGS_DIR = path.resolve("data", "logs");
 
 // ── 存储配置持久化文件 ──
 const STORAGE_CONFIG_PATH = path.resolve("data", "config", "storage-config.json");
@@ -32,8 +30,6 @@ function loadStorageConfigFromFile() {
     const cfg = JSON.parse(raw);
     if (cfg.workplace) WORKPLACE_DIR = path.resolve(cfg.workplace);
     if (cfg.sessions) SESSIONS_DIR = path.resolve(cfg.sessions);
-    if (cfg.knowledge) KNOWLEDGE_DIR = path.resolve(cfg.knowledge);
-    if (cfg.logs) LOGS_DIR = path.resolve(cfg.logs);
     console.log(`[Storage] 从文件恢复存储配置`);
     return true;
   } catch (err) {
@@ -84,9 +80,7 @@ app.get("/api/storage/config", (c) => {
     ok: true,
     config: {
       workplace: WORKPLACE_DIR,
-      sessions: SESSIONS_DIR,
-      knowledge: KNOWLEDGE_DIR,
-      logs: LOGS_DIR,
+      sessions: SESSIONS_DIR
     },
   });
 });
@@ -114,20 +108,6 @@ app.post("/api/storage/config", async (c) => {
     SESSIONS_DIR = resolved;
     result.sessions = resolved;
     console.log(`[Storage] 会话目录已切换: ${resolved}`);
-  }
-  if (body.knowledge !== undefined) {
-    const resolved = path.resolve(body.knowledge);
-    fs.mkdirSync(resolved, { recursive: true });
-    KNOWLEDGE_DIR = resolved;
-    result.knowledge = resolved;
-    console.log(`[Storage] 知识库目录已切换: ${resolved}`);
-  }
-  if (body.logs !== undefined) {
-    const resolved = path.resolve(body.logs);
-    fs.mkdirSync(resolved, { recursive: true });
-    LOGS_DIR = resolved;
-    result.logs = resolved;
-    console.log(`[Storage] 日志目录已切换: ${resolved}`);
   }
 
   // 持久化
@@ -304,8 +284,6 @@ app.post("/api/sessions/export", async (c) => {
 // ── saveStorageConfigToFile 函数（用于 API 路由） ──
 function saveStorageConfigToFile(config: {
   sessions?: string;
-  knowledge?: string;
-  logs?: string;
   workplace?: string;
 }) {
   try {
@@ -323,7 +301,7 @@ function saveStorageConfigToFile(config: {
 }
 
 // 确保各存储目录存在
-[WORKPLACE_DIR, SESSIONS_DIR, KNOWLEDGE_DIR, LOGS_DIR].forEach((dir) => {
+[WORKPLACE_DIR, SESSIONS_DIR].forEach((dir) => {
   try { fs.mkdirSync(dir, { recursive: true }); } catch { /* ok */ }
 });
 
