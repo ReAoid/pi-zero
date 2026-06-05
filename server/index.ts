@@ -150,6 +150,7 @@ app.post("/api/workplace/config", async (c) => {
   try {
     fs.mkdirSync(resolved, { recursive: true });
     WORKPLACE_DIR = resolved;
+    startWorkplaceWatcher();
     console.log(`[Workplace] 目录已切换: ${resolved}`);
     return c.json({ ok: true, path: resolved });
   } catch (err) {
@@ -336,6 +337,35 @@ app.post("/api/workplace/mkdir", async (c) => {
   }
 });
 
+// ── Workplace 文件监听 ──
+let workplaceWatcher: fs.FSWatcher | null = null;
+
+function startWorkplaceWatcher() {
+  if (workplaceWatcher) workplaceWatcher.close();
+  try {
+    workplaceWatcher = fs.watch(WORKPLACE_DIR, { recursive: true }, (eventType, filename) => {
+      if (!filename) return;
+      // 过滤临时文件和隐藏文件
+      const name = typeof filename === 'string' ? filename : filename.toString();
+      if (name.startsWith('.') || name.endsWith('~') || name.endsWith('.swp')) return;
+
+      const msg = JSON.stringify({
+        type: "workplace_changed",
+        event: eventType,
+        path: name.replace(/\\/g, "/"),
+      });
+      wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(msg);
+        }
+      });
+    });
+    console.log(`  👀 Workplace 监听已启动: ${WORKPLACE_DIR}`);
+  } catch (err) {
+    console.warn("  ⚠️  Workplace 监听启动失败:", (err as Error).message);
+  }
+}
+
 // ── 静态文件服务 ──
 const CLIENT_DIR = path.resolve("client");
 const MIME_TYPES: Record<string, string> = {
@@ -457,6 +487,9 @@ try {
 }
 
 // ── 启动完成 ──
+// ── 启动 Workplace 文件监听 ──
+startWorkplaceWatcher();
+
 console.log(`\n  🚀 pi-zero 聊天服务已启动`);
 console.log(`  📡 http://localhost:${process.env.PORT || "3000"}`);
 console.log(`  🔑 请确保设置了 API Key 环境变量\n`);

@@ -1585,6 +1585,16 @@
           break;
         }
 
+        // ── Workplace 文件变动：自动刷新文件列表 ──
+        case "workplace_changed": {
+          // 防抖：500ms 内多次变更只刷新一次
+          if (window._wpDebounceTimer) clearTimeout(window._wpDebounceTimer);
+          window._wpDebounceTimer = setTimeout(() => {
+            workplace.refresh();
+          }, 500);
+          break;
+        }
+
         // ── 会话信息 ──
         case "session_info": {
           if (event.model) {
