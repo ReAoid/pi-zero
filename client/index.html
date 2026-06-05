@@ -229,6 +229,7 @@
                 </div>
               </div>
             </div>
+          </div>
           <!-- 存储 -->
           <div class="settings-pane" id="pane-storage">
             <h3 class="settings-pane__title">存储设置</h3>
@@ -237,22 +238,12 @@
               <input class="settings-input" type="text" id="settings-session-path" placeholder="./data/sessions" />
               <p class="settings-hint">聊天会话历史存储路径</p>
             </div>
-            <div class="settings-field">
-              <label class="settings-label">知识库</label>
-              <input class="settings-input" type="text" id="settings-knowledge-path" placeholder="./data/knowledge" />
-              <p class="settings-hint">知识库文件存储路径</p>
-            </div>
-            <div class="settings-field">
-              <label class="settings-label">日志</label>
-              <input class="settings-input" type="text" id="settings-log-path" placeholder="./data/logs" />
-              <p class="settings-hint">运行日志存储路径</p>
-            </div>
             <div class="settings-field" style="border-top: var(--border-2) solid var(--color-border); padding-top: var(--spacing-4); margin-top: var(--spacing-2);">
               <label class="settings-label">🛠 WorkPlace 目录</label>
               <input class="settings-input" type="text" id="settings-workplace-path" placeholder="./workplace" />
               <p class="settings-hint">Agent 工作文件存放路径，留空默认使用项目根目录下的 workplace/</p>
             </div>
-            <button class="settings-btn settings-btn--primary" id="settings-storage-save">保存存储配置</button>
+            <button class="settings-btn settings-btn--primary" id="settings-storage-save" style="margin-top: 1rem;">保存存储配置</button>
           </div>
         </div>
       </div>

@@ -559,19 +559,27 @@ window.addEventListener("ws:workplace_changed", () => {
 });
 
 // ── 初始化 Workplace ──
-(function initWorkplace() {
-  const stored = localStorage.getItem("pi-zero-storage");
-  if (stored) {
-    try {
-      const cfg = JSON.parse(stored);
-      if (cfg.workplace) {
-        fetch("/api/workplace/config", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ path: cfg.workplace }),
-        }).catch(() => {});
-      }
-    } catch (e) {}
+(async function initWorkplace() {
+  // 优先从服务端加载存储配置
+  try {
+    const res = await fetch("/api/storage/config");
+    const data = await res.json();
+    if (!data.ok || !data.config) throw new Error("no config");
+  } catch {
+    // 降级：从 localStorage 加载
+    const stored = localStorage.getItem("pi-zero-storage");
+    if (stored) {
+      try {
+        const cfg = JSON.parse(stored);
+        if (cfg.workplace) {
+          fetch("/api/workplace/config", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ path: cfg.workplace }),
+          }).catch(() => {});
+        }
+      } catch (e) {}
+    }
   }
   workplace.refresh();
   workplace.initDragDrop();

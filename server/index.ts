@@ -45,6 +45,64 @@ app.get("/api/status", (c) => {
   });
 });
 
+// ── 存储配置 API ──
+app.get("/api/storage/config", (c) => {
+  return c.json({
+    ok: true,
+    config: {
+      workplace: WORKPLACE_DIR,
+      sessions: SESSIONS_DIR,
+      knowledge: KNOWLEDGE_DIR,
+      logs: LOGS_DIR,
+    },
+  });
+});
+
+app.post("/api/storage/config", async (c) => {
+  const body = await c.req.json();
+  if (!body || typeof body !== "object") {
+    return c.json({ ok: false, error: "参数无效" }, 400);
+  }
+
+  const result: Record<string, string> = {};
+
+  // 更新并持久化每个路径
+  if (body.workplace !== undefined) {
+    const resolved = path.resolve(body.workplace);
+    fs.mkdirSync(resolved, { recursive: true });
+    WORKPLACE_DIR = resolved;
+    result.workplace = resolved;
+    startWorkplaceWatcher();
+    console.log(`[Storage] Workplace 目录已切换: ${resolved}`);
+  }
+  if (body.sessions !== undefined) {
+    const resolved = path.resolve(body.sessions);
+    fs.mkdirSync(resolved, { recursive: true });
+    SESSIONS_DIR = resolved;
+    result.sessions = resolved;
+    console.log(`[Storage] 会话目录已切换: ${resolved}`);
+  }
+  if (body.knowledge !== undefined) {
+    const resolved = path.resolve(body.knowledge);
+    fs.mkdirSync(resolved, { recursive: true });
+    KNOWLEDGE_DIR = resolved;
+    result.knowledge = resolved;
+    console.log(`[Storage] 知识库目录已切换: ${resolved}`);
+  }
+  if (body.logs !== undefined) {
+    const resolved = path.resolve(body.logs);
+    fs.mkdirSync(resolved, { recursive: true });
+    LOGS_DIR = resolved;
+    result.logs = resolved;
+    console.log(`[Storage] 日志目录已切换: ${resolved}`);
+  }
+
+  // 持久化
+  saveStorageConfigToFile(body);
+
+  return c.json({ ok: true, config: result });
+});
+
 // ── 供应商测试连接 ──
 app.post("/api/provider/test", async (c) => {
   const config = await c.req.json();
@@ -83,12 +141,61 @@ app.post("/api/provider/switch", async (c) => {
 //  Workplace API: 右侧边栏文件系统
 // ═══════════════════════════════════════════════════════
 
+// ── 存储路径配置（可从客户端覆盖） ──
 let WORKPLACE_DIR = path.resolve("workplace");
+let SESSIONS_DIR = path.resolve("data", "sessions");
+let KNOWLEDGE_DIR = path.resolve("data", "knowledge");
+let LOGS_DIR = path.resolve("data", "logs");
 
-// 确保 workplace 目录存在
-try {
-  fs.mkdirSync(WORKPLACE_DIR, { recursive: true });
-} catch { /* ok */ }
+// ── 存储配置持久化文件 ──
+const STORAGE_CONFIG_PATH = path.resolve("data", "storage-config.json");
+
+// 从文件恢复存储配置
+function loadStorageConfigFromFile() {
+  try {
+    if (!fs.existsSync(STORAGE_CONFIG_PATH)) return false;
+    const raw = fs.readFileSync(STORAGE_CONFIG_PATH, "utf-8");
+    const cfg = JSON.parse(raw);
+    if (cfg.workplace) WORKPLACE_DIR = path.resolve(cfg.workplace);
+    if (cfg.sessions) SESSIONS_DIR = path.resolve(cfg.sessions);
+    if (cfg.knowledge) KNOWLEDGE_DIR = path.resolve(cfg.knowledge);
+    if (cfg.logs) LOGS_DIR = path.resolve(cfg.logs);
+    console.log(`[Storage] 从文件恢复存储配置`);
+    return true;
+  } catch (err) {
+    console.warn("[Storage] 读取存储配置失败:", (err as Error).message);
+    return false;
+  }
+}
+
+// 持久化存储配置到文件
+function saveStorageConfigToFile(config: {
+  sessions?: string;
+  knowledge?: string;
+  logs?: string;
+  workplace?: string;
+}) {
+  try {
+    const dir = path.dirname(STORAGE_CONFIG_PATH);
+    fs.mkdirSync(dir, { recursive: true });
+    const existing: Record<string, string> = {};
+    if (fs.existsSync(STORAGE_CONFIG_PATH)) {
+      try { Object.assign(existing, JSON.parse(fs.readFileSync(STORAGE_CONFIG_PATH, "utf-8"))); } catch { /* ok */ }
+    }
+    const merged = { ...existing, ...config };
+    fs.writeFileSync(STORAGE_CONFIG_PATH, JSON.stringify(merged, null, 2), "utf-8");
+  } catch (err) {
+    console.warn("[Storage] 持久化存储配置失败:", (err as Error).message);
+  }
+}
+
+// 从文件恢复配置
+loadStorageConfigFromFile();
+
+// 确保各存储目录存在
+[WORKPLACE_DIR, SESSIONS_DIR, KNOWLEDGE_DIR, LOGS_DIR].forEach((dir) => {
+  try { fs.mkdirSync(dir, { recursive: true }); } catch { /* ok */ }
+});
 
 // 安全校验：防止路径穿越
 function safeResolve(relativePath: string): string | null {
@@ -140,7 +247,7 @@ function openInFileManager(dirPath: string): void {
   child.unref();
 }
 
-// ── 配置 workplace 路径 ──
+// ── 配置 workplace 路径（兼容旧调用方） ──
 app.post("/api/workplace/config", async (c) => {
   const { path: newPath } = await c.req.json();
   if (!newPath) {
@@ -151,7 +258,8 @@ app.post("/api/workplace/config", async (c) => {
     fs.mkdirSync(resolved, { recursive: true });
     WORKPLACE_DIR = resolved;
     startWorkplaceWatcher();
-    console.log(`[Workplace] 目录已切换: ${resolved}`);
+    saveStorageConfigToFile({ workplace: resolved });
+    console.log(`[Storage] Workplace 目录已切换: ${resolved}`);
     return c.json({ ok: true, path: resolved });
   } catch (err) {
     return c.json({ ok: false, error: (err as Error).message }, 500);
@@ -382,7 +490,7 @@ function startWorkplaceWatcher() {
     workplaceWatcher = fs.watch(WORKPLACE_DIR, { recursive: true }, (eventType, filename) => {
       if (!filename) return;
       // 过滤临时文件和隐藏文件
-      const name = typeof filename === 'string' ? filename : filename.toString();
+      const name = filename.toString();
       if (name.startsWith('.') || name.endsWith('~') || name.endsWith('.swp')) return;
 
       const msg = JSON.stringify({
